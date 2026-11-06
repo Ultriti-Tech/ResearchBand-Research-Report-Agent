@@ -15,7 +15,14 @@ def to_text(content) -> str:
     return str(content)
 
 
-def run_search_pipeline(topic: str, on_step=None) -> dict:
+# ----------------------------------
+# run serach pipeline 
+
+def run_search_pipeline(
+    topic: str,
+    reportFormat: str = "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
+    on_step=None,
+) -> dict:
     # on_step(step_id, status) is optional, used by the API to report progress
     emit = on_step or (lambda step, status: None)
     state = {}
@@ -68,7 +75,13 @@ def run_search_pipeline(topic: str, on_step=None) -> dict:
         f"DETAILED SCRAPED CONTENT:\n{state['scraped_content']}"
     )
     report = to_text(
-        writer_chain.invoke({"topic": topic, "research": research_combined})
+        writer_chain.invoke(
+            {
+                "topic": topic,
+                "research": research_combined,
+                "reportFormat": reportFormat,
+            }
+        )
     )
     source_list = (
         "\n".join(

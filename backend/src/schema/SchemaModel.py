@@ -5,6 +5,8 @@ from typing import TypedDict
 
 class ResearchReq(BaseModel):
     topic: str
+    reportFormat:str
+    
 
 
 class ChatMessage(BaseModel):

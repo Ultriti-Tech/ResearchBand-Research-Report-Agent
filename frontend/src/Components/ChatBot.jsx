@@ -99,8 +99,8 @@ export default function ChatBot({ topic, report, onReportChange }) {
   };
 
   return (
-    <section className="workspace-chat flex min-h-[480px] flex-col overflow-hidden border border-[var(--border-default)] bg-[var(--bg-raised)] shadow-[var(--shadow-card)]">
-      <header className="border-b border-[var(--border-subtle)] px-5 py-4">
+    <section className="workspace-chat flex min-h-0 flex-col overflow-hidden border border-[var(--border-default)] bg-[var(--bg-raised)] shadow-[var(--shadow-card)]">
+      <header className="shrink-0 border-b border-[var(--border-subtle)] px-4 py-3.5 sm:px-5 sm:py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-muted)] text-[var(--accent)]">
             <svg
@@ -142,7 +142,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
       </header>
 
       <div
-        className="flex flex-1 flex-col gap-4 overflow-y-auto p-4"
+        className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-3 sm:p-4"
         aria-live="polite"
       >
         {!report ? (
@@ -207,7 +207,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
             {messages.map((message, index) => (
               <div
                 key={`${index}-${message.role}`}
-                className={`max-w-[90%] rounded-xl px-3.5 py-2.5 text-[13px] leading-5 ${
+                className={`max-w-[90%] break-words rounded-xl px-3.5 py-2.5 text-[13px] leading-5 ${
                   message.role === "user"
                     ? "ml-auto bg-[var(--accent)] text-white"
                     : "mr-auto border border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-secondary)]"
@@ -324,7 +324,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
           event.preventDefault();
           sendMessage();
         }}
-        className="border-t border-[var(--border-subtle)] p-3"
+        className="shrink-0 border-t border-[var(--border-subtle)] p-2.5 sm:p-3"
       >
         {error && (
           <p
@@ -335,12 +335,13 @@ export default function ChatBot({ topic, report, onReportChange }) {
           </p>
         )}
         <button
+          type="button"
           onClick={() => {
             setisCodeFix(!isCodeFix);
           }}
-          className="h-[2vw] w-[8vw] items-center justify-center bg-amber-500 rounded-2xl m-2 text-[15px] text-gray-50 cursor-pointer border border-s-amber-600"
+          className="mb-2 inline-flex min-h-9 max-w-full items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] sm:text-[13px]"
         >
-          {isCodeFix ? "bug fix agent" : "llm agent"}
+          {isCodeFix ? "Switch to report chat" : "Switch to edit assistant"}
         </button>
         <div className="flex items-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 focus-within:border-[var(--accent)]">
           <textarea

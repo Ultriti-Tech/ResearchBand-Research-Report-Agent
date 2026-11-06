@@ -1,11 +1,11 @@
 const BASE = import.meta.env.VITE_BASE_URL;
 
 // Sends only the topic, then calls onEvent for every status/result/error the server streams back
-export async function runResearch(topic, onEvent) {
+export async function runResearch(topic, reportFormat, onEvent) {
   const res = await fetch(`${BASE}/api/v1/research/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ topic }),
+    body: JSON.stringify({ topic, reportFormat: reportFormat }),
   });
   if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
 
@@ -72,7 +72,9 @@ export async function suggestReportInfo(topic, report, messages = []) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail || `Report chat request failed (${res.status})`);
+    throw new Error(
+      body?.detail || `Report chat request failed (${res.status})`,
+    );
   }
 
   const answer = await res.json();

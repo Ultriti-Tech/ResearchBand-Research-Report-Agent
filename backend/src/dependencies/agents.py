@@ -57,9 +57,7 @@ writer_prompt = ChatPromptTemplate.from_messages(
                 {research}
 
                 Structure the report as:
-                - Introduction
-                - Key Findings (minimum 3 well-explained points)
-                - Conclusion
+                {reportFormat}
 
                 Be detailed, factual and professional. Use only source URLs supplied in
                 the research and do not invent citations; the verified source list will be
@@ -131,7 +129,7 @@ def chatAgent(req):
                     "the report provided below. Be clear about uncertainty and do not "
                     "introduce claims unsupported by the report. If the report does "
                     "not contain the answer, say so.\n\n"
-                    f"Topic: {req.topic}\n\nReport:\n{req.report}"
+                    f"Topic: {req.topic}\n\nReport:\n{req.report} "
                 )
             ),
             *conversation,

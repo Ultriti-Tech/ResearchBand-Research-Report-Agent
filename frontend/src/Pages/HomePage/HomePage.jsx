@@ -4,13 +4,13 @@ import ReportView from "../../Components/ReportView";
 import ChatBot from "../../Components/ChatBot";
 import { STEPS } from "../../steps";
 import { runResearch } from "../../api";
+import FormatForm from "../../Components/FormatSubmitForm";
 
 const SUGGESTIONS = [
   "LLM agents 2025",
   "CRISPR gene editing",
   "Fusion energy progress",
 ];
-
 
 const IDLE = STEPS.map(() => "waiting");
 const stepIndex = (id) => STEPS.findIndex((s) => s.id === id);
@@ -21,6 +21,8 @@ export default function HomePage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  const [isFormatUi, setisFormatUi] = useState(false);
+  const [reportFormat, setreportFormat] = useState(null);
 
   const mark = (i, status) =>
     setStatuses((prev) => prev.map((s, idx) => (idx === i ? status : s)));
@@ -44,7 +46,7 @@ export default function HomePage() {
     setStatuses(IDLE);
 
     try {
-      await runResearch(topic, handleEvent);
+      await runResearch(topic, reportFormat, handleEvent);
     } catch (e) {
       setStatuses((prev) => prev.map((s) => (s === "running" ? "error" : s)));
       setError(e.message);
@@ -55,6 +57,20 @@ export default function HomePage() {
 
   return (
     <main className="workspace-main">
+      {isFormatUi ? (
+        <div className="h-[100%] w-[100%] flex items-center justify-center">
+          <div className="h-[40vh] w-[50vw] items-center justify-center flex">
+            <FormatForm
+              initialValue={setreportFormat}
+              onSubmit={setreportFormat}
+              onCancel={setisFormatUi}
+            />
+          </div>
+        </div>
+      ) : (
+        <></>
+      )}
+
       <div className="workspace-grid">
         <section className="workspace-content space-y-6">
           {/* Header area */}
@@ -80,6 +96,17 @@ export default function HomePage() {
               <p className="mt-1 text-[13px] text-[var(--text-secondary)]">
                 Enter a subject or pick one of the suggested topics.
               </p>
+              <p>{reportFormat ? reportFormat : null}</p>
+              <div
+                onClick={() => {
+                  setisFormatUi(true);
+                }}
+                className="h-[2vw] w-[6vw] border border-amber-600 rounded-2xl flex items-center justify-center"
+              >
+                <p className="text-[13px] text-[var(--text-secondary)]">
+                  Format
+                </p>
+              </div>
             </div>
             <label
               htmlFor="research-topic"

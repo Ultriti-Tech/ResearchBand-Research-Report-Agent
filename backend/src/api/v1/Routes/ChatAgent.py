@@ -16,8 +16,8 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
-from src.schema.SchemaModel import ResearchReq, ChatMessage, ReportChatReq
-from src.schema.ChatAgent import Patch, EditRequest
+from src.schema.SchemaModel import ReportChatReq
+from src.schema.ChatAgent import EditRequest
 from src.dependencies.tools import generate_patch
 from src.dependencies.patcher import apply_patch
 from src.dependencies.agents import chatAgent
@@ -36,7 +36,7 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
 def chat_about_report(req: ReportChatReq):
     if not req.messages or req.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="A user message is required.")
-    
+
     # response = chatAgent(req)
 
     conversation = [
@@ -63,8 +63,10 @@ def chat_about_report(req: ReportChatReq):
     )
     return {"answer": to_text(response.content)}
 
+
 # ---------------------------------
-# edit report agent 
+# edit report agent
+
 
 @router.post("/editchat")
 def edit_code(request: EditRequest):

@@ -7,7 +7,7 @@ import threading
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Literal
@@ -16,7 +16,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
-from src.schema.SchemaModel import ResearchReq, ChatMessage, ReportChatReq
+from src.schema.SchemaModel import ResearchReq
 
 router = APIRouter(prefix="/research", tags=["research"])
 
@@ -36,6 +36,8 @@ router = APIRouter(prefix="/research", tags=["research"])
     # ],
 )
 def research(req: ResearchReq):
+    print(req.topic)
+    print(req.reportFormat)
     events = queue.Queue()
     current = {"step": None}  # remembers which step is running, for error reporting
 
@@ -45,7 +47,8 @@ def research(req: ResearchReq):
 
     def worker():
         try:
-            state = run_search_pipeline(req.topic, on_step=on_step)
+            print("="*50,req.reportFormat)
+            state = run_search_pipeline(req.topic, req.reportFormat, on_step=on_step)
             events.put(
                 {
                     "type": "result",
