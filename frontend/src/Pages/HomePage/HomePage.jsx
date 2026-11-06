@@ -61,7 +61,7 @@ export default function HomePage() {
         <div className="h-[100%] w-[100%] flex items-center justify-center">
           <div className="h-[40vh] w-[50vw] items-center justify-center flex">
             <FormatForm
-              initialValue={setreportFormat}
+              initialValue={reportFormat ? reportFormat : ""}
               onSubmit={setreportFormat}
               onCancel={setisFormatUi}
             />
@@ -93,18 +93,29 @@ export default function HomePage() {
               <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
                 Start a research report
               </h2>
-              <p className="mt-1 text-[13px] text-[var(--text-secondary)]">
+              <p className="mt-1 text-[13px] text-[var(--text-secondary)] mb-4">
                 Enter a subject or pick one of the suggested topics.
               </p>
-              <p>{reportFormat ? reportFormat : null}</p>
+
+              {/* ---------------------------------------------- */}
+              {/* report format  */}
+
+              {reportFormat ? <p className="mb-2">provided format</p> : null}
+
+              {reportFormat ? (
+                <p className="min-h-0 max-h-[10vh] w-full overflow-y-auto text-[10px] pl-3 pr-3 pt-2 pb-3 cursor-pointer mb-3 border border-gray-700 rounded-[10px] bg-gray-900">
+                  {reportFormat ? reportFormat : null}
+                </p>
+              ) : null}
+
               <div
                 onClick={() => {
                   setisFormatUi(true);
                 }}
-                className="h-[2vw] w-[6vw] border border-amber-600 rounded-2xl flex items-center justify-center"
+                className="h-[1.5vw] w-[4vw] border border-amber-600 rounded-2xl flex items-center justify-center cursor-pointer"
               >
                 <p className="text-[13px] text-[var(--text-secondary)]">
-                  Format
+                  {reportFormat ? "edit" : "format"}
                 </p>
               </div>
             </div>

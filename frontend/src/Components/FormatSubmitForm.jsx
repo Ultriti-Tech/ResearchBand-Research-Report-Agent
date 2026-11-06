@@ -24,7 +24,7 @@ import { useState } from "react";
 export default function FormatForm({ initialValue, onSubmit, onCancel }) {
   const [format, setFormat] = useState(initialValue?.format ?? "");
   const [instructions, setInstructions] = useState(
-    initialValue?.instructions ?? "",
+    initialValue ?. instructions ?? initialValue,
   );
 
   const isEmpty = !format.trim() && !instructions.trim();
@@ -33,7 +33,7 @@ export default function FormatForm({ initialValue, onSubmit, onCancel }) {
     e.preventDefault();
     console.log(
       "{ format: format.trim(), instructions: instructions.trim() }",
-      {instructions: instructions.trim() },
+      { instructions: instructions.trim() },
     );
     onSubmit?.(instructions.trim());
     onCancel(false);
