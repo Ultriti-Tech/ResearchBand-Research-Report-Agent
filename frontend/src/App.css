@@ -41,6 +41,79 @@ body {
   min-height: 100vh;
 }
 
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.app-content {
+  min-height: 0;
+  flex: 1;
+}
+
+.workspace-main {
+  min-height: calc(100dvh - 3.5rem);
+}
+
+.workspace-grid {
+  display: grid;
+  min-height: inherit;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace-content {
+  min-width: 0;
+  padding: 2rem 1rem;
+}
+
+.workspace-chat-panel {
+  min-width: 0;
+  padding: 0 1rem 1rem;
+}
+
+.workspace-chat {
+  height: min(72dvh, 46rem);
+  border-radius: var(--radius-lg);
+}
+
+@media (min-width: 900px) {
+  .app-shell {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-main {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .workspace-grid {
+    height: 100%;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 30vw);
+  }
+
+  .workspace-content {
+    overflow-y: auto;
+    padding: 2.5rem clamp(1.5rem, 4vw, 4.5rem);
+  }
+
+  .workspace-chat-panel {
+    height: 100%;
+    border-left: 1px solid var(--border-subtle);
+    padding: 1rem;
+  }
+
+  .workspace-chat {
+    height: 100%;
+    min-height: 0;
+    border-radius: var(--radius-md);
+  }
+}
+
 /* ── Custom scrollbar ──────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;

@@ -11,7 +11,7 @@ const linkClass = ({ isActive }) =>
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--bg-base)]/80 border-b border-[var(--border-subtle)]">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 h-14">
+      <nav className="flex h-14 items-center justify-between px-4 sm:px-6">
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-2 group">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-white text-xs font-bold shadow-sm">

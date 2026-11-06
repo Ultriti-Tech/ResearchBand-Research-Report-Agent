@@ -9,13 +9,15 @@ import "./App.css"
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen">
+      <div className="app-shell">
         <Navbar />
 
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<AboutPage />} />
-        </Routes>
+        <div className="app-content">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/about" element={<AboutPage />} />
+          </Routes>
+        </div>
       </div>
     </Router>
   );

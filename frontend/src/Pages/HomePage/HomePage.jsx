@@ -54,9 +54,9 @@ export default function HomePage() {
   };
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="space-y-6">
+    <main className="workspace-main">
+      <div className="workspace-grid">
+        <section className="workspace-content space-y-6">
           {/* Header area */}
           <div className="max-w-2xl">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
@@ -191,7 +191,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <div className="lg:sticky lg:top-20">
+        <div className="workspace-chat-panel">
           <ChatBot
             key={result?.topic || "empty"}
             topic={result?.topic}

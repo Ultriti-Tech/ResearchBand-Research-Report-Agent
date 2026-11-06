@@ -99,7 +99,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
   };
 
   return (
-    <section className="flex min-h-[480px] flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--border-default)] bg-[var(--bg-raised)] shadow-[var(--shadow-card)] lg:h-[calc(100vh-6rem)] lg:max-h-[760px]">
+    <section className="workspace-chat flex min-h-[480px] flex-col overflow-hidden border border-[var(--border-default)] bg-[var(--bg-raised)] shadow-[var(--shadow-card)]">
       <header className="border-b border-[var(--border-subtle)] px-5 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-muted)] text-[var(--accent)]">
