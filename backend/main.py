@@ -20,7 +20,7 @@ def health_check() -> dict[str, str]:
 
 allowed_origins = {
     "http://localhost:5173",
-    "https://multiagent-ai-system.netlify.app",
+    "https://researchand.ultriti.com/",
 }
 allowed_origins.update(
     origin.rstrip("/")
