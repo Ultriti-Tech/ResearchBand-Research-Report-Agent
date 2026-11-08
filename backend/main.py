@@ -20,8 +20,11 @@ def health_check() -> dict[str, str]:
 
 allowed_origins = {
     "http://localhost:5173",
+    "https://researchand.ultriti.com",
     "https://researchand.ultriti.com/",
 }
+
+
 allowed_origins.update(
     origin.rstrip("/")
     for name in ("FRONTEND_URL", "FRONTEND_URL_2")
