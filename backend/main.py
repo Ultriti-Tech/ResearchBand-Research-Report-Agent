@@ -12,6 +12,12 @@ app = FastAPI(title="ResearchMind API")
 
 load_dotenv()
 
+
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
+def health_check() -> dict[str, str]:
+    return {"status": "ok"}
+
+
 allowed_origins = {
     "http://localhost:5173",
     "https://multiagent-ai-system.netlify.app",
@@ -31,4 +37,3 @@ app.add_middleware(
 
 
 app.include_router(api_router, prefix="/api/v1")
-
