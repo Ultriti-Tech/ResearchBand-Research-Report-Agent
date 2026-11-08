@@ -100,14 +100,19 @@ export default function HomePage() {
               {/* ---------------------------------------------- */}
               {/* report format  */}
 
-              {reportFormat ? <p className="mb-2">provided format</p> : null}
+              <p className="mb-2">provided format</p>
 
               {reportFormat ? (
                 <p className="min-h-0 max-h-[10vh] w-full overflow-y-auto text-[10px] pl-3 pr-3 pt-2 pb-3 cursor-pointer mb-3 border border-gray-700 rounded-[10px] bg-gray-900">
-                  {reportFormat ? reportFormat : null}
+                  {reportFormat}
                 </p>
-              ) : null}
-
+              ) : (
+                <ul className="text-[10px] pl-6 mb-3 list-disc">
+                  <li>Introduction</li>
+                  <li>Key Findings (minimum 3 well-explained points)</li>
+                  <li>Conclusion</li>
+                </ul>
+              )}
               <div
                 onClick={() => {
                   setisFormatUi(true);

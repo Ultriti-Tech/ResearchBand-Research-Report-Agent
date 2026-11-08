@@ -32,7 +32,6 @@ export default function FormatForm({ initialValue, onSubmit, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log(
-      "{ format: format.trim(), instructions: instructions.trim() }",
       { instructions: instructions.trim() },
     );
     onSubmit?.(instructions.trim());

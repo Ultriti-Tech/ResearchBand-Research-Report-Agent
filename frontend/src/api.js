@@ -1,11 +1,16 @@
 const BASE = import.meta.env.VITE_BASE_URL;
 
 // Sends only the topic, then calls onEvent for every status/result/error the server streams back
-export async function runResearch(topic, reportFormat, onEvent) {
+export async function runResearch(topic, reportFormat = "", onEvent) {
   const res = await fetch(`${BASE}/api/v1/research/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ topic, reportFormat: reportFormat }),
+    body: JSON.stringify({
+      topic,
+      reportFormat: reportFormat
+        ? reportFormat
+        : "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
+    }),
   });
   if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
 
