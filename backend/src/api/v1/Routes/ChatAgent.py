@@ -30,8 +30,6 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
 
 # -----------------------------------------
 # prompts
-
-
 @router.post("/", include_in_schema=False)
 def chat_about_report(req: ReportChatReq):
     if not req.messages or req.messages[-1].role != "user":
@@ -66,8 +64,6 @@ def chat_about_report(req: ReportChatReq):
 
 # ---------------------------------
 # edit report agent
-
-
 @router.post("/editchat")
 def edit_code(request: EditRequest):
     try:

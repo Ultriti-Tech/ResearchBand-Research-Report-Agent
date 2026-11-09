@@ -1,6 +1,11 @@
 fastapi
 uvicorn
-pydantic
+pydantic[email]
+pydantic-settings
+sqlalchemy
+psycopg[binary]
+PyJWT
+pwdlib[argon2]
 
 langchain
 langchain-core
