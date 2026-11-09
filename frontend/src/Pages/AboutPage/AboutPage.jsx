@@ -35,7 +35,7 @@ const HIGHLIGHTS = [
   {
     title: "Useful output beyond the app",
     description:
-      "Copy the report or download it as a Markdown file to continue working in your preferred tools.",
+      "Copy the report or download it as a PDF, Markdown, or Word document to continue working in your preferred tools.",
   },
 ];
 

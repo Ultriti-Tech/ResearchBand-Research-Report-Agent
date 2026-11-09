@@ -5,106 +5,155 @@ import os
 import ast
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Literal
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+from datetime import datetime, timezone
 
 # import files
-from src.dependencies.pipeline import run_search_pipeline, to_text
-from src.dependencies.agents import gemini_model
-from src.schema.SchemaModel import ReportChatReq
-from src.schema.ChatAgent import EditRequest
-from src.dependencies.tools import generate_patch
-from src.dependencies.patcher import apply_patch
-from src.dependencies.agents import chatAgent
+from src.schema.Auth import UserResponse, RegisterRequest, LoginRequest
+from src.schema.user import LoginResponse, TokenResponse
+from db.database import get_db
+from models.user import User
+from core.security import hash_password, verify_password, create_access_token
 
 logger = logging.getLogger(__name__)
 
 
-router = APIRouter(prefix="/chatagent", tags=["chatagent"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-# -----------------------------------------
-# prompts
+# ---------------------------
+# register user
+@router.post("/register", response_model=TokenResponse)
+def register(
+    req: RegisterRequest, response: Response, db: Annotated[Session, Depends(get_db)]
+):
+    print(req)
 
+    email = str(req.email).strip().lower()
+    password = str(req.password).strip().lower()
+    username = str(req.username).strip().lower()
 
-@router.post("/", include_in_schema=False)
-def chat_about_report(req: ReportChatReq):
-    if not req.messages or req.messages[-1].role != "user":
-        raise HTTPException(status_code=400, detail="A user message is required.")
+    hashed_password = hash_password(password=password)
 
-    # response = chatAgent(req)
+    exsisting = db.scalar(select(User).where(User.email == email))
 
-    conversation = [
-        (
-            HumanMessage(content=message.content)
-            if message.role == "user"
-            else AIMessage(content=message.content)
+    if exsisting:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists",
         )
-        for message in req.messages
-    ]
-    response = gemini_model.invoke(
-        [
-            SystemMessage(
-                content=(
-                    "You are a helpful research assistant. Answer questions using "
-                    "the report provided below. Be clear about uncertainty and do not "
-                    "introduce claims unsupported by the report. If the report does "
-                    "not contain the answer, say so.\n\n"
-                    f"Topic: {req.topic}\n\nReport:\n{req.report}"
-                )
-            ),
-            *conversation,
-        ]
+
+    user = User(
+        username=username,
+        email=email,
+        hashed_password=hashed_password,
+        purchased="FREE",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
-    return {"answer": to_text(response.content)}
 
+    db.add(user)
 
-# ---------------------------------
-# edit report agent
-
-
-@router.post("/editchat")
-def edit_code(request: EditRequest):
     try:
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise
 
-        print("instruction given : ", request.instruction)
-        patch = generate_patch(request.code, request.instruction, request.file_name)
 
-        if not patch.changes:
-            return {"success": False, "message": patch.explanation}
+    access_token = create_access_token(subject=str(user.id))
 
-        print("patch generated ..")
+    # -------------------------------------
+    # Store JWT in HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # True in production with HTTPS
+        samesite="lax",
+        max_age=60 * 60 * 24,
+    )
 
-        updated, diff = apply_patch(request.code, patch)
-        print("apploed pathc")
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            purchased=user.purchased,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        ),
+    )
 
-        print("---------------------------------\n updated\n", updated)
-        print("---------------------------------\n diff\n", diff)
 
-        if request.file_name.lower().endswith(".py"):
-            ast.parse(updated)
-        return {
-            "success": True,
-            "explanation": patch.explanation,
-            "changes": [change.model_dump() for change in patch.changes],
-            "updated_code": updated,
-            "diff": diff,
-        }
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except SyntaxError as exc:
+# -----------------------
+# login user
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
+def login(
+    req: LoginRequest, response: Response, db: Annotated[Session, Depends(get_db)]
+):
+    
+    email = str(req.email).strip().lower()
+    password = str(req.password).strip().lower()
+
+    user = db.scalar(select(User).where(User.email == email))
+
+    if user is None or not verify_password(
+        password=password, hashed_password=user.hashed_password if user else ""
+    ):
         raise HTTPException(
-            status_code=422,
-            detail=f"Suggested edit produced invalid Python syntax: {exc.msg}",
-        ) from exc
-    except Exception as exc:
-        logger.exception("AI edit generation failed")
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if not user.is_active:
         raise HTTPException(
-            status_code=502,
-            detail="AI edit generation failed. Check the backend configuration and try again.",
-        ) from exc
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This account is disabled",
+        )
+        
+    access_token = create_access_token(subject=str(user.id))
+
+    # ---------------------------------
+    # Store JWT in HttpOnly cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=False,  # True in production with HTTPS
+        samesite="lax",
+        max_age=60 * 60 * 24,
+    )
+
+    return LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserResponse(
+            id=user.id,
+            username=user.username,
+            email=user.email,
+            is_active=user.is_active,
+            purchased=user.purchased,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        ),
+    )
