@@ -21,6 +21,7 @@ def health_check() -> dict[str, str]:
 allowed_origins = {
     "http://localhost:5173",
     "https://researchand.ultriti.com",
+    "https://researchand.ultriti.com",
     "https://researchand.ultriti.com/",
 }
 
