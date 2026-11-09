@@ -22,6 +22,11 @@ from src.dependencies.tools import generate_patch
 from src.dependencies.patcher import apply_patch
 from src.dependencies.agents import chatAgent
 
+from src.core.rate_limiting import (
+    account_sliding_window_limit,
+    account_token_bucket_limit,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +35,19 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
 
 # -----------------------------------------
 # prompts
-@router.post("/", include_in_schema=False)
+@router.post(
+    "/",
+    include_in_schema=False,
+    dependencies=[
+        Depends(
+            account_token_bucket_limit(
+                scope="chatagent",
+                capacity=10,
+                refill_per_second=10 / 60,
+            )
+        )
+    ],
+)
 def chat_about_report(req: ReportChatReq):
     if not req.messages or req.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="A user message is required.")
@@ -64,7 +81,18 @@ def chat_about_report(req: ReportChatReq):
 
 # ---------------------------------
 # edit report agent
-@router.post("/editchat")
+@router.post(
+    "/editchat",
+    dependencies=[
+        Depends(
+            account_token_bucket_limit(
+                scope="editchat",
+                capacity=10,
+                refill_per_second=10 / 60,
+            )
+        )
+    ],
+)
 def edit_code(request: EditRequest):
     try:
 

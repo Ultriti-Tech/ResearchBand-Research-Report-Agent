@@ -3,14 +3,39 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 # import files
 from src.api.v1.routes import api_router
+from src.db.redis import redis_client
 
 
-app = FastAPI(title="ResearchMind API")
 
 load_dotenv()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    app.state.redis = redis_client
+
+    try:
+        await app.state.redis.set("connection_test", "connected")
+        result = await app.state.redis.get("connection_test")
+
+        print("Upstash Redis:", result)
+
+        yield
+
+    finally:
+        pass
+
+app = FastAPI(
+    title="Application API",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
 
 
 @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
@@ -37,6 +62,7 @@ app.add_middleware(
     allow_origins=sorted(allowed_origins),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Retry-After"],
 )
 
 

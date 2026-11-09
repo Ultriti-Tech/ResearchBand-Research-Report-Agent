@@ -6,22 +6,22 @@ from src.schema.user import UserResponse
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# from core.rate_limiter import token_bucket_limit
+from src.core.rate_limiting import token_bucket_limit
 
 # -------------------
 # get user detail
 @router.get(
     "/getUser",
     response_model=UserResponse,
-    # dependencies=[
-    #     Depends(
-    #         token_bucket_limit(
-    #             scope="user_details",
-    #             capacity=30,
-    #             refill_per_second=20 / 60,
-    #         )
-    #     )
-    # ],
+    dependencies=[
+        Depends(
+            token_bucket_limit(
+                scope="user_details",
+                capacity=15,
+                refill_per_second=15 / 60,
+            )
+        )
+    ],
 )
 def read_current_user(current_user: CurrentUser):
     return current_user

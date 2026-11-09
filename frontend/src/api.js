@@ -1,10 +1,14 @@
 const BASE = import.meta.env.VITE_BASE_URL;
+const token = localStorage.getItem("RHD_v1_dashed_t");
 
 // Sends only the topic, then calls onEvent for every status/result/error the server streams back
 export async function runResearch(topic, reportFormat = "", onEvent) {
   const res = await fetch(`${BASE}/api/v1/research/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       topic,
       reportFormat: reportFormat
@@ -12,6 +16,7 @@ export async function runResearch(topic, reportFormat = "", onEvent) {
         : "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
     }),
   });
+
   if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
 
   const reader = res.body.getReader();
@@ -30,12 +35,17 @@ export async function runResearch(topic, reportFormat = "", onEvent) {
       if (part.startsWith("data: ")) onEvent(JSON.parse(part.slice(6)));
     }
   }
+
+  return res;
 }
 
 export async function suggestReportEdit(instruction, report) {
   const res = await fetch(`${BASE}/api/v1/chatagent/editchat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify({
       code: report,
       instruction,
@@ -71,7 +81,10 @@ export async function suggestReportInfo(topic, report, messages = []) {
 
   const res = await fetch(`${BASE}/api/v1/chatagent/`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
     body: JSON.stringify(payload),
   });
 

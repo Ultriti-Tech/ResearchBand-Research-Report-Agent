@@ -18,6 +18,8 @@ from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
 from src.schema.SchemaModel import ResearchReq
 
+from src.core.rate_limiting import account_sliding_window_limit
+
 router = APIRouter(prefix="/research", tags=["research"])
 
 
@@ -25,15 +27,15 @@ router = APIRouter(prefix="/research", tags=["research"])
 # process pipeline
 @router.post(
     "/",
-    # dependencies=[
-    #     Depends(
-    #         token_bucket_limit(
-    #             scope="pipeline",
-    #             capacity=1,
-    #             refill_per_second=1 / 3600,
-    #         )
-    #     )
-    # ],
+    dependencies=[
+        Depends(
+            account_sliding_window_limit(
+                scope="research",
+                limit=1,
+                window_seconds=3600,
+            )
+        )
+    ],
 )
 def research(req: ResearchReq):
     print(req.topic)

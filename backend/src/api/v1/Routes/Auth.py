@@ -22,9 +22,20 @@ from datetime import datetime, timezone
 # import files
 from src.schema.Auth import UserResponse, RegisterRequest, LoginRequest
 from src.schema.user import LoginResponse, TokenResponse
-from db.database import get_db
-from models.user import User
-from core.security import hash_password, verify_password, create_access_token
+from src.db.database import get_db
+from src.models.user import User
+from src.core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+)
+
+from src.core.rate_limiting import (
+    token_bucket_limit,
+    account_token_bucket_limit,
+    sliding_window_limit,
+    account_sliding_window_limit,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +45,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # ---------------------------
 # register user
-@router.post("/register", response_model=TokenResponse)
+@router.post(
+    "/register",
+    response_model=TokenResponse,
+    dependencies=[
+        Depends(
+            sliding_window_limit(
+                scope="register",
+                limit=5,
+                window_seconds=300
+            )
+            )
+        ],
+)
 def register(
     req: RegisterRequest, response: Response, db: Annotated[Session, Depends(get_db)]
 ):
@@ -73,7 +96,6 @@ def register(
         db.rollback()
         raise
 
-
     access_token = create_access_token(subject=str(user.id))
 
     # -------------------------------------
@@ -107,11 +129,20 @@ def register(
 @router.post(
     "/login",
     response_model=TokenResponse,
+    dependencies=[
+        Depends(
+            sliding_window_limit(
+                scope="login",
+                limit=10,
+                window_seconds=300
+            )
+        )
+    ]
 )
 def login(
     req: LoginRequest, response: Response, db: Annotated[Session, Depends(get_db)]
 ):
-    
+
     email = str(req.email).strip().lower()
     password = str(req.password).strip().lower()
 
@@ -130,7 +161,7 @@ def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This account is disabled",
         )
-        
+
     access_token = create_access_token(subject=str(user.id))
 
     # ---------------------------------
@@ -156,4 +187,6 @@ def login(
             created_at=user.created_at,
             updated_at=user.updated_at,
         ),
+        message="Login Successfull",
+        success=True
     )

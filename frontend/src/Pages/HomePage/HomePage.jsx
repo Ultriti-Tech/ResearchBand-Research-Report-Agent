@@ -23,6 +23,8 @@ export default function HomePage() {
   const [error, setError] = useState("");
   const [isFormatUi, setisFormatUi] = useState(false);
   const [reportFormat, setreportFormat] = useState(null);
+  const [isFloatingAlert, setisFloatingAlert] = useState(false);
+  const [alertInformation, setalertInformation] = useState(null);
 
   const mark = (i, status) =>
     setStatuses((prev) => prev.map((s, idx) => (idx === i ? status : s)));
@@ -46,7 +48,10 @@ export default function HomePage() {
     setStatuses(IDLE);
 
     try {
-      await runResearch(topic, reportFormat, handleEvent);
+      const res = await runResearch(topic, reportFormat, handleEvent);
+      console.log('res', res)
+      // setisFloatingAlert(true)
+      // setalertInformation({text : res.})
     } catch (e) {
       setStatuses((prev) => prev.map((s) => (s === "running" ? "error" : s)));
       setError(e.message);
@@ -57,6 +62,7 @@ export default function HomePage() {
 
   return (
     <main className="workspace-main">
+      {/* report format input ui */}
       {isFormatUi ? (
         <div className="h-[100%] w-[100%] flex items-center justify-center">
           <div className="h-[40vh] w-[50vw] items-center justify-center flex">
@@ -72,6 +78,7 @@ export default function HomePage() {
       )}
 
       <div className="workspace-grid">
+        {/* ---------------------- inout topic ui -------------------- */}
         <section className="workspace-content space-y-6">
           {/* Header area */}
           <div className="max-w-2xl">
@@ -234,6 +241,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* -------------- chat bot ui ------------- */}
         <div className="workspace-chat-panel">
           <ChatBot
             key={result?.topic || "empty"}
