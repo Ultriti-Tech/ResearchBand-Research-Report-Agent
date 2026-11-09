@@ -47,8 +47,6 @@ secrets.json
 # --------------------
 # Machine Learning Models
 
-models/
-model/
 artifacts/
 checkpoints/
 *.pkl
