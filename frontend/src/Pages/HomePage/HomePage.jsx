@@ -5,6 +5,7 @@ import ChatBot from "../../Components/ChatBot";
 import { STEPS } from "../../steps";
 import { runResearch } from "../../api";
 import FormatForm from "../../Components/FormatSubmitForm";
+import FloatingAlert from "../../Components/FloatingAlert";
 
 const SUGGESTIONS = [
   "LLM agents 2025",
@@ -49,9 +50,26 @@ export default function HomePage() {
 
     try {
       const res = await runResearch(topic, reportFormat, handleEvent);
-      console.log('res', res)
-      // setisFloatingAlert(true)
-      // setalertInformation({text : res.})
+
+      // ----------- success ( Reseach and Report Generation completed ) ----------------
+      if (res.ok) {
+        setisFloatingAlert(true);
+        setalertInformation({
+          text: `Request successfull`,
+          desc: `Research and Report Generation completed`,
+          type: "success",
+        });
+      }
+
+      // ----------- warning ( too many resuest) ----------------
+      if (res?.status === 429) {
+        setisFloatingAlert(true);
+        setalertInformation({
+          text: res.data.statusText,
+          desc: `retry after ${res.retryafter} seconds`,
+          type: "warning",
+        });
+      }
     } catch (e) {
       setStatuses((prev) => prev.map((s) => (s === "running" ? "error" : s)));
       setError(e.message);
@@ -62,6 +80,20 @@ export default function HomePage() {
 
   return (
     <main className="workspace-main">
+      {isFloatingAlert ? (
+        <>
+          <div className="">
+            <FloatingAlert
+              message={alertInformation?.desc}
+              title={alertInformation?.text}
+              type={alertInformation.type}
+              duration={4000} // ms, set 0 to keep it until closed
+              onClose={() => setisFloatingAlert(false)}
+            />
+          </div>
+        </>
+      ) : null}
+
       {/* report format input ui */}
       {isFormatUi ? (
         <div className="h-[100%] w-[100%] flex items-center justify-center">

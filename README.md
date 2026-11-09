@@ -41,12 +41,14 @@ The project is intended for students, analysts, writers, product teams, and othe
 - **Report-focused assistant:** Ask follow-up questions in the context of the current report.
 - **User-controlled edits:** Request report changes and review proposed edits before applying them.
 - **Export and editing controls:** Copy, download, and directly edit report content.
+- **Accounts and sign-in:** Register and log in; authenticated routes accept the JWT as a bearer token or cookie.
+- **Request limits:** Redis-backed limits apply to selected account and IP-based routes.
 - **Responsive workspace:** Use the report and assistant layout across supported screen sizes.
 
 ### Not implemented / not claimed
 
-- User accounts, role-based access, or saved report history.
-- Database-backed persistence or enterprise administration.
+- Role-based access, saved report history, or persistent chat/report data.
+- Account deletion (the current endpoint is a placeholder) or enterprise administration.
 - Formal model-quality evaluation or measured productivity outcomes.
 - Production-grade operational guarantees.
 
@@ -69,9 +71,11 @@ The browser UI communicates with a FastAPI service. The service coordinates topi
 ```mermaid
 flowchart LR
     U[User] --> UI[React web application]
-    UI -->|HTTP and streamed progress| API[FastAPI service]
+    UI -->|HTTP, JWT auth, streamed progress| API[FastAPI service]
     API --> Search[External web research service]
     API --> Model[Hosted generative AI]
+    API --> Accounts[(SQL user accounts)]
+    API --> Limits[(Upstash Redis rate limits)]
     Search --> API
     Model --> API
     API -->|Report, sources, critique, status| UI
@@ -79,7 +83,7 @@ flowchart LR
     API -->|Answer or proposed edit| UI
 ```
 
-This is a high-level product view, not a complete internal design specification. The current project does not use a database for durable report storage.
+This is a high-level product view, not a complete internal design specification. A configured SQL database stores user account records, and Redis supports selected rate limits. Research reports and conversations are not durably stored.
 
 ## Technology stack
 
@@ -94,7 +98,8 @@ This is a high-level product view, not a complete internal design specification.
 | Generative AI | Google Gemini through `langchain-google-genai` | Report and report-assistant functionality |
 | Web research | Firecrawl through `firecrawl-py` | External research/search capability |
 | Other configured integration | Groq through `langchain-groq` | Dependency is present; no active product flow was verified using it |
-| Persistence | None | Reports are not stored in a project database |
+| Account data | SQLAlchemy and configured SQL database (`DATABASE_URL`) | User account records; no report/chat history |
+| Rate limiting | Upstash Redis | Shared counters for selected IP- and account-based limits |
 | Development tools | npm, ESLint, Python, pip | Frontend dependency management, linting, and backend setup |
 
 ## Repository structure
@@ -106,7 +111,11 @@ This is a high-level product view, not a complete internal design specification.
 │   ├── requirements.txt
 │   └── src/
 │       ├── api/          # HTTP routes
-│       ├── dependencies/ # Research and assistant integrations
+│       ├── config/       # Application settings
+│       ├── core/         # Authentication and rate limiting
+│       ├── db/           # SQL database and Redis connections
+│       ├── dependencies/ # Research, assistant, and auth dependencies
+│       ├── models/       # SQLAlchemy models
 │       └── schema/       # Request and response models
 ├── frontend/
 │   ├── package.json
@@ -178,6 +187,10 @@ There is no checked-in `.env.example`. Create a local `backend\.env` file and su
 ```dotenv
 GOOGLE_API_KEY=your_google_api_key
 FIRECRAWL_API_KEY=your_firecrawl_api_key
+DATABASE_URL=your_database_connection_url
+JWT_SECRET_KEY=replace_with_a_long_random_secret
+UPSTASH_REDIS_REST_URL=your_upstash_redis_url
+UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
 # Optional frontend origins for deployments; not needed for the default local setup.
 FRONTEND_URL=
@@ -185,6 +198,7 @@ FRONTEND_URL_2=
 ```
 
 `GROQ_API_KEY` is referenced by the repository's configured Groq client, but an active user-facing flow using that client was not verified. Do not add real credentials to source control. The frontend's `VITE_BASE_URL` belongs in `frontend\.env.local` as shown above.
+Account registration/login requires a configured database and `JWT_SECRET_KEY`. Selected rate limits require Upstash Redis credentials. The repository currently has no database migration or table-creation command, so the configured database schema must be provisioned separately.
 
 ## Using the application
 
@@ -197,13 +211,18 @@ FRONTEND_URL_2=
 
 ## API overview
 
-These are the verified application routes mounted under `/api/v1`. They do not require authentication in the current implementation.
+These are the application routes mounted under `/api/v1`. Account and sign-in routes are listed alongside research features; protected routes require a valid account token.
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/research/` | Start topic research and stream progress and final results using Server-Sent Events. |
-| `POST` | `/api/v1/chatagent/` | Ask a report-focused follow-up question; returns a JSON answer. This route is excluded from the generated OpenAPI schema. |
-| `POST` | `/api/v1/chatagent/editchat` | Request a report edit and receive a proposed change for user review. |
+| `POST` | `/api/v1/auth/register` | Register an account and return a JWT. |
+| `POST` | `/api/v1/auth/login` | Authenticate an account and return a JWT. |
+| `POST` | `/api/v1/auth/logout` | Clear the auth cookie; clients must also remove any locally stored bearer token. |
+| `GET` | `/api/v1/users/getUser` | Return the authenticated user's account details. |
+| `DELETE` | `/api/v1/users/account` | Placeholder only; currently returns the authenticated user ID and does not delete the account. |
+| `POST` | `/api/v1/research/` | Start authenticated topic research and stream progress and results using Server-Sent Events. Limited to one request per account per hour. |
+| `POST` | `/api/v1/chatagent/` | Ask an authenticated report-focused follow-up question; returns a JSON answer. This route is excluded from the generated OpenAPI schema. |
+| `POST` | `/api/v1/chatagent/editchat` | Request an authenticated report edit and receive a proposed change for user review. |
 
 Request schemas and implementation details are documented in [PROJECT_REPORT.md](./PROJECT_REPORT.md).
 
@@ -212,8 +231,9 @@ Request schemas and implementation details are documented in [PROJECT_REPORT.md]
 - **Human review is part of the workflow:** source links are available for inspection, and assistant-proposed changes are reviewable before use.
 - **Progressive feedback:** the research request provides streamed progress/results rather than requiring users to wait without status.
 - **Typed service boundary:** FastAPI and Pydantic are used for HTTP routing and request validation.
-- **No durable storage:** reports are not persisted to a project database or user account.
-- **Security scope:** the current API has no authentication or authorization layer. Do not treat it as suitable for sensitive data or unrestricted public deployment without additional security and operational work.
+- **Account data only:** user records are stored in the configured SQL database; reports and conversations are not persisted.
+- **Authentication and limits:** authenticated routes resolve the user from a JWT supplied in a bearer header or cookie; selected routes use Redis-backed IP/account limits.
+- **Security scope:** the app has no roles or report ownership/history. The current auth cookie is configured with `secure=False`, and account deletion is not implemented; further security work is needed before public production use.
 
 ## Validation, limitations, and roadmap
 
@@ -224,7 +244,7 @@ Frontend build and lint checks and backend Python compilation were run during de
 ### Current limitations
 
 - Generated research and answers may be incomplete or incorrect; users must validate sources and claims.
-- No authentication, user accounts, or durable report history.
+- No saved report/chat history, role-based access, or implemented account deletion.
 - External integrations require valid configuration and network access.
 - The repository does not specify a project license.
 - No genuine product screenshots or measured performance results are currently included.
@@ -232,8 +252,8 @@ Frontend build and lint checks and backend Python compilation were run during de
 ### Potential next steps
 
 - Add automated unit, API, and browser-level tests.
-- Add authentication, rate limiting, and operational safeguards before public deployment.
-- Introduce persistence only with a defined privacy and retention policy.
+- Harden authentication and rate limiting, and add operational safeguards before public deployment.
+- Add report/chat persistence only with a defined ownership, privacy, and retention policy.
 - Add evaluation procedures for source quality and report reliability.
 - Capture and maintain genuine screenshots and document supported deployment configurations.
 

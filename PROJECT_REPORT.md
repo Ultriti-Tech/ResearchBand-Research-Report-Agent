@@ -79,7 +79,7 @@ The project targets the time and context switching involved in turning an open-e
 
 ### 3.6 Scope
 
-The implemented scope is a single-user browser workflow consisting of:
+The implemented scope includes the research workflow and a basic account workflow:
 
 - Home and About pages.
 - Topic entry and suggested topic buttons.
@@ -89,11 +89,14 @@ The implemented scope is a single-user browser workflow consisting of:
 - Report copy, download, and direct edit actions.
 - Report-focused assistant chat.
 - AI-suggested report edits with accept/reject controls.
+- Account registration/login, JWT-based authentication, and authenticated profile lookup.
+- Selected IP- and account-based rate limits backed by Redis.
 
 ### 3.7 Limitations
 
-- No user accounts, authentication, authorization, or role-based access are implemented.
-- No database, durable report storage, or conversation history is implemented.
+- User accounts are stored in the configured SQL database, but there are no roles or per-report ownership rules.
+- Reports, feedback, and conversations are not durably stored; account deletion is currently a placeholder.
+- The repository does not include a database migration or table-creation command.
 - Research, chat, and edit features depend on configured external services and network availability.
 - Search results and page text are deliberately bounded in the current implementation.
 - Source relevance and report factuality are not measured by an evaluation suite.
@@ -133,8 +136,10 @@ The repository does not specify minimum CPU, memory, or disk requirements. Use r
 | Google Gemini service | Active model integration used for report-related AI capabilities; requires configured credentials |
 | Firecrawl service | Active news search integration; requires configured credentials |
 | Groq service | Client and dependency are present, but no active route flow uses the configured Groq model |
+| SQL database | Required for account registration and lookup; connection is configured with `DATABASE_URL` |
+| Upstash Redis | Required for the configured rate limits; connection is initialized from environment variables |
 
-Environment variable **names** referenced in source/configuration are `FIRECRAWL_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `FRONTEND_URL`, `FRONTEND_URL_2`, and `VITE_BASE_URL`. Their values are private and are not included here.
+Environment variable **names** referenced in source/configuration include `FIRECRAWL_API_KEY`, `GOOGLE_API_KEY`, `GROQ_API_KEY`, `DATABASE_URL`, `JWT_SECRET_KEY`, `FRONTEND_URL`, `FRONTEND_URL_2`, and `VITE_BASE_URL`. Redis is initialized with `Redis.from_env()` and requires the provider's expected environment variables. Their values are private and are not included here.
 
 ### 5.3 Functional requirements
 
@@ -147,6 +152,7 @@ Environment variable **names** referenced in source/configuration are `FIRECRAWL
 7. Accept or reject the proposed edit.
 8. Edit report text directly, copy it, or download it as Markdown.
 9. Navigate between the Home and About pages.
+10. Register or log in and use authenticated API routes.
 
 ### 5.4 Non-functional requirements and implementation evidence
 
@@ -156,7 +162,7 @@ Environment variable **names** referenced in source/configuration are `FIRECRAWL
 | Interoperability | Browser and service communicate using JSON and an SSE research stream |
 | Configuration | Frontend base URL and service credentials are configured through environment variables |
 | Input validation | Pydantic validates request structures; edit requests have specific length, size, and filename validation |
-| Security | No user authentication is implemented; research rate-limiting code is commented out |
+| Security | JWT authentication and selected Redis-backed rate limits are implemented; roles, report ownership, and production hardening remain incomplete |
 | Performance | No latency targets, load tests, or benchmarks are declared |
 | Reliability | Provider failures are surfaced, but retries, cancellation, and durable background jobs are not implemented |
 | Accessibility | Some labels and live regions exist; no formal accessibility audit is documented |
@@ -180,7 +186,8 @@ Environment variable **names** referenced in source/configuration are `FIRECRAWL
 | Page extraction | Requests, Beautiful Soup 4, lxml | Fetch HTML and extract readable text |
 | Configuration | `python-dotenv` | Load environment variables from `.env` files |
 | API communication | JSON over HTTP; Server-Sent Events | Frontend/service communication and streaming research progress |
-| Database | None | No database driver, schema, ORM, or persistence layer is present |
+| Database | SQLAlchemy, configured SQL database, psycopg driver | Persists user account records; reports and conversations are not persisted |
+| Rate limiting | Upstash Redis | Supports selected IP- and account-based request limits |
 | Deployment | No complete deployment platform/configuration declared | A Netlify origin appears in CORS configuration, but this alone does not establish a deployed service |
 | Development tools | npm, ESLint, Vite, Python `compileall`, `uv_build` declaration | Frontend scripts, linting, build, Python package build metadata/syntax checks |
 
@@ -252,7 +259,7 @@ Environment variable **names** referenced in source/configuration are `FIRECRAWL
 
 **Advantages:** Typed request models, documented route patterns, and straightforward ASGI integration.
 
-**Limitations:** No application authentication or authorization layer is implemented. Dependency metadata is inconsistent: `requirements.txt` lists dependencies while `pyproject.toml` declares none.
+**Limitations:** Basic JWT authentication exists, but there is no role-based authorization or report ownership. Dependency metadata is inconsistent: `requirements.txt` lists dependencies while `pyproject.toml` declares none.
 
 ### 7.6 LangChain and LangGraph package
 
@@ -330,15 +337,15 @@ Environment variable **names** referenced in source/configuration are `FIRECRAWL
 
 `react-markdown` renders Markdown content in the report and chat. `remark-gfm` enables GitHub-Flavored Markdown features. `@tailwindcss/typography` supplies prose styling. These packages affect content presentation, not fact checking or report generation.
 
-### 7.13 No database
+### 7.13 Account database and report storage
 
-No database engine, client, ORM, migration framework, schema, table, or collection is present. Research data and conversations are not durably stored by the application.
+SQLAlchemy and a configured SQL database are used for user account records. The repository has no database migration or table-creation command. Research reports, feedback, and conversations are not durably stored by the application.
 
 ## 8. System Architecture
 
 ### 8.1 Overall architecture
 
-The application has a React/Vite frontend and a Python/FastAPI service. The frontend sends research, report-chat, and edit requests to the service. The service uses Firecrawl and hosted language-model integrations for its active AI-assisted features. Research progress is streamed to the frontend. The browser holds the active report and conversation state; there is no persistence service or database.
+The application has a React/Vite frontend and a Python/FastAPI service. The frontend sends account, research, report-chat, and edit requests to the service. The service uses a configured SQL database for account records, Upstash Redis for selected rate limits, and Firecrawl and hosted language-model integrations for its active AI-assisted features. Research progress is streamed to the frontend. The browser holds the active report and conversation state; reports and chats are not persisted.
 
 ### 8.2 Architecture diagram
 
@@ -353,6 +360,8 @@ flowchart LR
     WEB --> EXTRACT[Requests + Beautiful Soup + lxml]
     PIPE --> GEM[Google Gemini via LangChain]
     API --> GEM
+    API --> USERS[(SQL user records)]
+    API --> RL[(Redis rate limits)]
     FE --> STATE[Browser component state]
     GEM --> API
     FC --> PIPE
@@ -374,7 +383,7 @@ The active research process consists of a news search, a reader-agent invocation
 
 ### 8.5 Database interaction
 
-There is no database interaction. The active browser session contains report and conversation state; refreshing or leaving the page does not load a saved report record.
+The backend uses SQLAlchemy to load and store user account records in the configured SQL database. Redis is used by the selected rate-limit dependencies. The active browser session contains report and conversation state; refreshing or leaving the page does not load a saved report record.
 
 ### 8.6 External services
 
@@ -424,9 +433,15 @@ There is no database interaction. The active browser session contains report and
 | File | Responsibility |
 |---|---|
 | `backend/main.py` | FastAPI application and CORS setup |
-| `backend/src/api/v1/routes.py` | Combines research and chat-agent routers |
+| `backend/src/api/v1/routes.py` | Combines user, auth, research, and chat-agent routers |
+| `backend/src/api/v1/Routes/Auth.py` | Account registration and login |
+| `backend/src/api/v1/Routes/User.py` | Authenticated account lookup; account deletion route is a placeholder |
 | `backend/src/api/v1/Routes/Research.py` | Research endpoint and SSE response |
 | `backend/src/api/v1/Routes/ChatAgent.py` | Report Q&A and edit endpoints |
+| `backend/src/dependencies/user.py` | Resolves the current user from a JWT cookie or bearer token |
+| `backend/src/core/rate_limiting.py` | IP- and account-based Redis rate-limit dependencies |
+| `backend/src/models/user.py` | SQLAlchemy account model |
+| `backend/src/db/` | SQL database session and Redis client setup |
 | `backend/src/dependencies/pipeline.py` | Sequential research processing and source formatting |
 | `backend/src/dependencies/agents.py` | Model clients, agents, and writer/critic chains |
 | `backend/src/dependencies/tools.py` | Firecrawl search, page extraction, AI patch generation |
@@ -438,11 +453,12 @@ There is no database interaction. The active browser session contains report and
 
 ### 10.1 Application user roles
 
-There are no named application roles or identity system. The app supports a general browser user.
+The app now has registered users and authenticated requests, but does not define application roles.
 
 | Role | Permissions / available functions | Restrictions |
 |---|---|---|
-| Browser user | Submit topics, view report/review, chat about report, edit/copy/download report, request suggested edits, accept or reject a proposal | No sign-in, user-specific data ownership, role restrictions, or saved account history |
+| Registered user | Sign in and access authenticated research, report chat/edit, and profile routes | No role restrictions, report ownership, or saved report/chat history |
+| Anonymous visitor | Register or log in; access routes explicitly left public, including IP-limited registration/login | Cannot call account-protected routes without a valid token |
 | AI assistant | Product capability that responds to questions or creates an edit proposal | Not an authenticated user role; output is not authoritative and requires user review |
 
 ### 10.2 Development team responsibilities
@@ -512,17 +528,17 @@ sequenceDiagram
 
 ### 11.5 Authentication and authorization
 
-No authentication or authorization workflow exists. CORS controls browser origin access and is not an identity mechanism. The report edit request has input validation but no user identity or ownership check.
+Registration and login create a JWT associated with the user ID. The backend sets an HttpOnly cookie and returns the token in the response; the frontend also sends it in an `Authorization: Bearer` header. The shared `CurrentUser` dependency accepts either the cookie or bearer token, validates the JWT, loads the account, and rejects missing/invalid credentials with HTTP 401 or inactive accounts with HTTP 403. CORS remains a browser-origin policy, not an identity mechanism. Authentication does not provide report ownership because reports and conversations are not persisted.
 
 ## 12. Database Design
 
 ### 12.1 Database technology
 
-No database is implemented. There are no database dependencies, ORM, migrations, tables, collections, primary keys, foreign keys, or entity relationships.
+SQLAlchemy connects to the configured SQL database using `DATABASE_URL`; the requirements include the psycopg PostgreSQL driver. The `users` table model stores account identity and status fields, including email, username, password hash, active status, and timestamps. No migration or automatic table-creation command was found in the repository.
 
 ### 12.2 Persistence behavior
 
-Current topic, report, feedback, chat messages, and pending edit are held in frontend component state. They are not stored as durable server-side records. A page refresh or new session does not restore prior work.
+User account records are stored in the configured SQL database. Current topic, report, feedback, chat messages, and pending edit remain in frontend component state; they are not saved as durable server-side records. A page refresh or new session does not restore prior research work.
 
 ### 12.3 In-memory request and result structures
 
@@ -537,15 +553,27 @@ Current topic, report, feedback, chat messages, and pending edit are held in fro
 | Edit request | `code`, `instruction`, `file_name` | Proposed report edit input |
 | Patch change | `old_text`, `new_text`, optional contexts, `reason` | A structured text replacement |
 
-An ER diagram is not applicable because no persisted entities or relational schema exist.
+The persisted user model is not connected to persisted report/chat entities; no report ownership relationships are implemented.
 
 ## 13. API Documentation
 
-All routes below are mounted below the `/api/v1` prefix. None requires authentication in the inspected implementation. Error responses produced by FastAPI use its standard JSON `detail` shape unless noted as an SSE event.
+All routes below are mounted below the `/api/v1` prefix. Authentication-protected routes require a valid JWT in the `access_token` cookie or an `Authorization: Bearer` header. Error responses produced by FastAPI use its standard JSON `detail` shape unless noted as an SSE event.
 
-### 13.1 `POST /api/v1/research/`
+### 13.1 Account and user routes
+
+| Method | Route | Authentication | Behavior |
+|---|---|---|---|
+| POST | `/api/v1/auth/register` | Public; IP rate limited | Create an account and return a JWT and user details. |
+| POST | `/api/v1/auth/login` | Public; IP rate limited | Validate credentials and return a JWT and user details. |
+| POST | `/api/v1/auth/logout` | Public; IP rate limited | Clear the auth cookie; the client must also remove a locally stored bearer token. |
+| GET | `/api/v1/users/getUser` | Required | Return the current user's account details. |
+| DELETE | `/api/v1/users/account` | Required | Placeholder response only; it does not delete the account. |
+
+### 13.2 `POST /api/v1/research/`
 
 **Purpose:** Run research and stream progress/result/error events.
+
+**Authentication and limit:** Requires an authenticated account and is limited to one request per account per hour.
 
 **Request body:**
 
@@ -599,9 +627,11 @@ Error event:
 
 The exact error message is derived from the caught exception. The stream response sets no-cache and proxy-buffering headers.
 
-### 13.2 `POST /api/v1/chatagent/`
+### 13.3 `POST /api/v1/chatagent/`
 
 **Purpose:** Answer a user question using the supplied topic, report, and conversation.
+
+**Authentication and limit:** Requires an authenticated account and uses an account-based Redis token-bucket limit.
 
 **Request body:**
 
@@ -630,9 +660,11 @@ Allowed message roles are `user` and `assistant`.
 
 **Validation/error behavior:** HTTP 400 is returned if `messages` is empty or the last message is not from the user. The route has `include_in_schema=False`, so it is intentionally omitted from the generated OpenAPI schema even though it remains callable.
 
-### 13.3 `POST /api/v1/chatagent/editchat`
+### 13.4 `POST /api/v1/chatagent/editchat`
 
 **Purpose:** Generate a structured text patch, apply it to the supplied content, and return the updated content and diff.
+
+**Authentication and limit:** Requires an authenticated account and uses an account-based Redis token-bucket limit.
 
 **Request body:**
 
@@ -675,9 +707,9 @@ If no changes are generated, the route returns `{"success": false, "message": ..
 - Python syntax is checked only when the submitted filename has a `.py` extension.
 - Unexpected edit-generation failures are logged and returned as HTTP 502 with a generic client detail.
 
-### 13.4 CORS and authentication
+### 13.5 CORS and authentication
 
-The backend permits the configured local origin `http://localhost:5173`, a static Netlify origin, and optional origins from `FRONTEND_URL` and `FRONTEND_URL_2`. Methods and headers are configured with wildcard lists. No authentication requirement is configured.
+The backend permits configured frontend origins, including `http://localhost:5173`, and optional origins from `FRONTEND_URL` and `FRONTEND_URL_2`. Methods and headers are configured with wildcard lists. Protected routes use the shared JWT-based current-user dependency. The login/register response also sets an HttpOnly cookie; the current code sets `secure=False`, which should be hardened for HTTPS production deployments. Selected route limits depend on Redis; rate limits do not imply broader authorization or saved-data ownership.
 
 ## 14. Screenshots & User Interface Documentation
 
@@ -828,9 +860,11 @@ Research and report chat models define field types and the role literal but do n
 
 - Local environment files are ignored by Git; secret values are not included in this report.
 - CORS allows the configured frontend origins; CORS does not authenticate users.
-- No authentication, authorization, per-user ownership, or persistent data access rules are implemented.
-- Research endpoint rate-limiter dependency is present only as commented-out code.
-- Edit requests validate filename form and supported extensions, but no user identity is associated with an edit.
+- Registration/login, JWT validation, and authenticated current-user resolution are implemented.
+- Selected registration/login routes have IP-based limits; research and report chat/edit routes have account-based Redis limits.
+- No roles, saved reports, report ownership, or persistent report access rules are implemented.
+- The account deletion route currently returns a placeholder response and does not delete data.
+- The auth cookie is currently configured with `secure=False`; production cookie and token-storage settings need review.
 - The webpage extraction tool retrieves a model-selected public URL; URL allowlisting is not evident in the inspected implementation.
 - Research/chat/edit content is sent to external providers as required by those features; provider retention policies are outside this repository.
 
@@ -907,7 +941,8 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 - The model selects a source for deeper reading; only that selected source is scraped by the reader tool flow.
 - A daemon-thread/in-memory-queue pattern does not provide durable background jobs or cancellation.
 - Model-generated reports and critiques are not independently validated.
-- No persistent storage, user identity, or saved history exists.
+- User accounts are persisted, but reports, chat history, and saved research are not.
+- Account deletion is not implemented; roles and per-report ownership are absent.
 - No automated test suite or formal model evaluation is declared.
 - Backend dependency declarations are inconsistent.
 - Groq is configured but not wired into the active model flows.
@@ -920,10 +955,10 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 3. Add provider timeout, retry/backoff, cancellation, and durable job handling.
 4. Improve source provenance and map report claims more directly to evidence.
 5. Evaluate source relevance, factuality, and answer grounding against a reviewed dataset.
-6. Add authentication, user ownership, and an explicit privacy/retention policy before multi-user use.
-7. Add persistence only after defining ownership, retention, and deletion requirements.
+6. Add role/ownership policies and a working account-deletion flow; define privacy and retention requirements.
+7. Add report persistence only after defining ownership, retention, and deletion requirements.
 8. Implement and test provider selection/fallback before presenting Groq as an available alternative.
-9. Add rate limiting, service observability, and health checks appropriate to a public deployment.
+9. Harden and test the existing rate limits; add service observability and health checks for public deployment.
 10. Establish a deployment configuration and CI workflow.
 11. Conduct accessibility and broader responsive-browser validation.
 12. Capture genuine application screenshots for the documentation.
@@ -932,7 +967,7 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 
 ResearchMind is a working prototype that combines a browser-based research workspace with a Python service and external research and generative-AI integrations. Its implemented user features include topic research, progress visibility, source-linked report generation, separate critique, report chat, editing, export, and reviewable AI-suggested changes.
 
-The project demonstrates a full-stack AI product workflow and a user-in-control approach to generated edits. Its outputs remain drafts that require verification. The current repository does not include persistence, authentication, automated test coverage, formal model evaluation, or a complete production deployment setup. Those are the principal next steps before positioning the application as a production research platform.
+The project demonstrates a full-stack AI product workflow, basic account authentication, selected rate limits, and a user-in-control approach to generated edits. User accounts are persisted, but reports and conversations are not. Outputs remain drafts that require verification. Automated test coverage, formal model evaluation, report ownership, account deletion, and complete production deployment controls remain future work.
 
 ## 20. References
 

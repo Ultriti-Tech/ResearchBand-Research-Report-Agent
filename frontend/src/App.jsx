@@ -13,6 +13,8 @@ import "./App.css"
 import Login from "./Pages/AuthPage/Login";
 import Register from "./Pages/AuthPage/Register";
 import UserProtectedWrapper from "./context/UserProtectedWrapper";
+import LogoutPage from "./Pages/AuthPage/Logout";
+import PageNotFound from "./Pages/PageNotFound/PageNotFound";
 
 function AppLayout() {
   const { pathname } = useLocation();
@@ -24,12 +26,16 @@ function AppLayout() {
 
       <div className="app-content">
         <Routes>
+          <Route path="*" element={<PageNotFound/>} />
+
+
           <Route path="/" element={<UserProtectedWrapper><HomePage /></UserProtectedWrapper>} />
           <Route path="/about" element={<UserProtectedWrapper><AboutPage /></UserProtectedWrapper>} />
 
           {/* -------------- auth route ---------------- */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/logout" element={<LogoutPage />} />
 
 
         </Routes>

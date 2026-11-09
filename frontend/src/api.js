@@ -1,44 +1,71 @@
 const BASE = import.meta.env.VITE_BASE_URL;
 const token = localStorage.getItem("RHD_v1_dashed_t");
 
-// Sends only the topic, then calls onEvent for every status/result/error the server streams back
+
 export async function runResearch(topic, reportFormat = "", onEvent) {
-  const res = await fetch(`${BASE}/api/v1/research/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      topic,
-      reportFormat: reportFormat
-        ? reportFormat
-        : "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
-    }),
-  });
 
-  if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
+  try {
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
+    const res = await fetch(`${BASE}/api/v1/research/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        topic,
+        reportFormat:
+          reportFormat ||
+          "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
+      }),
+    });
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split("\n\n");
-    buffer = parts.pop(); // keep the incomplete part for the next chunk
+    if (!res.ok || !res.body) {
+      const error = await res.text();
+      console.error("Research API error:", res.status, error);
+      const retryAfter = res.headers.get("Retry-After");
 
-    for (const part of parts) {
-      if (part.startsWith("data: ")) onEvent(JSON.parse(part.slice(6)));
+      return {
+        ok: false,
+        status: res.status,
+        error,
+        data: res,
+        retryafter: retryAfter,
+      };
     }
-  }
 
-  return res;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop();
+
+      for (const part of parts) {
+        if (part.startsWith("data: ")) {
+          const event = JSON.parse(part.slice(6));
+          console.log("SSE event:", event);
+          onEvent?.(event);
+        }
+      }
+    }
+
+    return res;
+  } catch (error) {
+    console.error("Research fetch failed:", error);
+    throw error;
+  }
 }
 
+// -------------------------- Report Editing Agent ----------------------
 export async function suggestReportEdit(instruction, report) {
   const res = await fetch(`${BASE}/api/v1/chatagent/editchat`, {
     method: "POST",
@@ -69,6 +96,8 @@ export async function suggestReportEdit(instruction, report) {
   return proposal;
 }
 
+
+// -------------------------- Report Info Agent -----------------------
 export async function suggestReportInfo(topic, report, messages = []) {
   const payload = {
     topic,

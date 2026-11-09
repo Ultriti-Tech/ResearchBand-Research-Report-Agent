@@ -190,3 +190,34 @@ def login(
         message="Login Successfull",
         success=True
     )
+
+
+
+# ---------------
+# lagout user
+@router.post(
+    "/logout",
+    # dependencies=[
+    #     Depends(
+    #         sliding_window_limit(
+    #             scope="logout",
+    #             limit=10,
+    #             window_seconds=300,
+    #         )
+    #     )
+    # ],
+)
+
+def logout(response: Response):
+    
+    response.delete_cookie(
+        key="access_token",
+        httponly=True,
+        secure=False,  # Set True in production with HTTPS
+        samesite="lax",
+        path="/",
+    )
+
+    return {
+        "message": "Logged out successfully"
+    }

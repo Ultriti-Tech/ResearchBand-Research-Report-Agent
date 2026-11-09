@@ -30,6 +30,9 @@ export default function Navbar() {
           <NavLink to="/about" className={linkClass}>
             About
           </NavLink>
+          <NavLink to="/logout" className={linkClass} end>
+            Logout
+          </NavLink>
         </div>
       </nav>
     </header>
