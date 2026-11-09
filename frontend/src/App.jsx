@@ -10,6 +10,9 @@ import Navbar from "./Components/Navbar";
 import HomePage from "./Pages/HomePage/HomePage";
 import AboutPage from "./Pages/AboutPage/AboutPage";
 import "./App.css"
+import Login from "./Pages/AuthPage/Login";
+import Register from "./Pages/AuthPage/Register";
+import UserProtectedWrapper from "./context/UserProtectedWrapper";
 
 function AppLayout() {
   const { pathname } = useLocation();
@@ -21,8 +24,14 @@ function AppLayout() {
 
       <div className="app-content">
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<AboutPage />} />
+          <Route path="/" element={<UserProtectedWrapper><HomePage /></UserProtectedWrapper>} />
+          <Route path="/about" element={<UserProtectedWrapper><AboutPage /></UserProtectedWrapper>} />
+
+          {/* -------------- auth route ---------------- */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+
+
         </Routes>
       </div>
     </div>
