@@ -18,7 +18,7 @@ export default function Navbar({credits = 0}) {
             R
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-[var(--text-primary)]">
-            Research<span className="text-[var(--accent)]">Mind</span>
+            Researc<span className="text-[var(--accent)]">Hand</span>
           </span>
         </NavLink>
 

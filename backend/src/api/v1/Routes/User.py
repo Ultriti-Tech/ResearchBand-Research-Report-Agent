@@ -9,6 +9,7 @@ from src.models.credits import Credit
 from src.db.database import get_db
 from src.dependencies.user import CurrentUser
 from src.schema.user import UserResponse, CurrentUserResponse
+from src.dependencies.helper import reset_daily_credits
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -34,10 +35,14 @@ from src.core.rate_limiting import token_bucket_limit
 def read_current_user(
     current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
 ):
-
+    
     credits = db.scalar(select(Credit).where(Credit.user_id == current_user.id))
     credit_balance = credits.balance
 
+    reset_daily_credits(credits)
+
+    db.commit()
+    
     user = UserResponse(
         id=current_user.id,
         email=current_user.email,

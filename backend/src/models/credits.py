@@ -34,6 +34,18 @@ class Credit(Base):
         nullable=False,
     )
 
+    daily_credit_limit: Mapped[int] = mapped_column(
+        Integer,
+        default=50,
+        nullable=False,
+    )
+
+    last_reset_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

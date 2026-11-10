@@ -7,7 +7,7 @@ const SUGGESTIONS = [
   "Add a concise executive summary",
 ];
 
-export default function ChatBot({ topic, report, onReportChange,setCredits }) {
+export default function ChatBot({ topic, report, onReportChange, setCredits }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -35,7 +35,7 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
     try {
       if (isCodeFix) {
         const proposal = await suggestReportEdit(question, report);
-        setCredits(proposal.credits)
+        setCredits(proposal.credits);
         if (!proposal.success || !proposal.changes?.length) {
           setMessages([
             ...nextMessages,
@@ -65,7 +65,7 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
       } else {
         const response = await suggestReportInfo(topic, report, nextMessages);
 
-        setCredits(response.credits)
+        setCredits(response.credits);
         setMessages([
           ...nextMessages,
           { role: "assistant", content: response.answer },
@@ -102,13 +102,12 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
     ]);
   };
 
-
   // useEffect(() => {
   //     let active = true;
-  
+
   //     const loadCurrentUser = async () => {
   //       const userDetails = await getUser();
-  
+
   //       if (!active) return;
   //       if (!userDetails.ok) {
   //         setError(
@@ -116,16 +115,16 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
   //         );
   //         return;
   //       }
-  
+
   //       console.log("userDetails", userDetails);
-  
+
   //       if (typeof userDetails.credits === "number") {
   //         setCredits(userDetails.credits);
   //       }
   //     };
-  
+
   //     loadCurrentUser();
-  
+
   //     return () => {
   //       active = false;
   //     };
@@ -159,7 +158,7 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
           </div>
           <div className="min-w-0">
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
-              Report assistant
+              {isCodeFix ? "Edit Assistant ( 2 )" : "Report Assistant ( 1 )"}
             </h2>
             <p className="truncate text-[12px] text-[var(--text-secondary)]">
               {topic
@@ -374,7 +373,9 @@ export default function ChatBot({ topic, report, onReportChange,setCredits }) {
           }}
           className="mb-2 inline-flex min-h-9 max-w-full items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] sm:text-[13px]"
         >
-          {isCodeFix ? "Switch to report chat ( 1 )" : "Switch to edit assistant ( 2 ) "}
+          {isCodeFix
+            ? "Switch to report chat ( 1 )"
+            : "Switch to edit assistant ( 2 ) "}
         </button>
         <div className="flex items-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 focus-within:border-[var(--accent)]">
           <textarea
