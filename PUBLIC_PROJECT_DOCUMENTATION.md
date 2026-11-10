@@ -114,9 +114,9 @@ The project explores how AI can reduce friction in preparing an initial research
 
 ### Scope
 
-**Implemented:** topic entry, progress display, report and review presentation, source links, report Q&A, direct editing, copy/download, and review-before-apply suggested edits.
+**Implemented:** topic entry, progress display, report and review presentation, source links, authenticated report history, report Q&A, direct editing, copy/download, and review-before-apply suggested edits.
 
-**Outside the current scope:** saved report history, enterprise administration, formal quality evaluation, and production operations. Basic user accounts are implemented, but report/chat persistence is not.
+**Outside the current scope:** persistent chat history, enterprise administration, formal quality evaluation, and production operations. User accounts and generated reports are stored; chat persistence is not implemented.
 
 ## 4. Key Features and Functionalities
 
@@ -151,7 +151,7 @@ The project explores how AI can reduce friction in preparing an initial research
 |---|---|
 | Source-backed research | Source URLs are included, but claim-by-claim attribution and automated source verification are not implemented |
 | Research coverage | The current external search and page-reading behavior is bounded; it is not a comprehensive literature review |
-| Report persistence | Current work is held in browser component state; there is no saved workspace or report history |
+| Report persistence | Completed research records are saved per account and displayed on the authenticated history page; active chat and pending edits remain browser state |
 | Provider flexibility | A Groq client is configured in the code, but active product flows use Gemini; provider switching/fallback is not implemented |
 | Security controls | JWT sign-in, authenticated route dependencies, and selected Redis-backed rate limits are present; roles, report ownership, account deletion, and production hardening are incomplete |
 | Testing | Frontend build/lint and selected browser checks have been run; an automated application test suite is not declared |
@@ -181,7 +181,7 @@ Report/chat persistence, authentication hardening, account deletion, automated t
 | Research integration | Firecrawl Python SDK | External news search |
 | Page extraction | Requests, Beautiful Soup 4, lxml | Retrieve and parse public webpage content |
 | Progress communication | JSON over HTTP and Server-Sent Events | Request/response exchange and research progress events |
-| Database/storage | SQLAlchemy with configured SQL database; Upstash Redis for rate limits | Account records are stored; reports and conversations are not persisted |
+| Database/storage | SQLAlchemy with configured SQL database; Upstash Redis for rate limits | Account, credit, and report records are stored; conversations are not persisted |
 | Deployment/infrastructure | No complete deployment definition found | A deployment target or production topology is not established by the repository |
 | Development/quality tools | npm, ESLint, Vite, Python compileall | Dependency management, frontend lint/build, Python syntax compilation |
 
@@ -189,7 +189,7 @@ Report/chat persistence, authentication hardening, account deletion, automated t
 
 | Technology | What it is | Why it fits this project | Interaction and advantages | Limitations |
 |---|---|---|---|---|
-| React | JavaScript UI library | Supports interactive report and chat views | Components manage distinct user-facing areas and their state | Current state is not persisted; no frontend test framework is declared |
+| React | JavaScript UI library | Supports interactive report and chat views | Components manage distinct user-facing areas and their state | Chat state is not persisted; no frontend test framework is declared |
 | Vite | Frontend dev/build tool | Provides local development and asset bundling | Integrates the React and Tailwind plugins | Production hosting is not configured in the repository |
 | Tailwind CSS | Utility-first CSS system | Enables quick styling of a dark, responsive interface | Used with CSS variables for project theme and layout | Utility-heavy component markup can be dense |
 | FastAPI | Python web framework | Supports typed request handling and streamed responses | Connects browser features with service-side operations | Basic JWT authentication exists; role-based authorization and report ownership are not implemented |
@@ -202,11 +202,11 @@ Report/chat persistence, authentication hardening, account deletion, automated t
 
 ### Database and storage
 
-SQLAlchemy connects to a SQL database configured through `DATABASE_URL`; the backend requirements include the psycopg PostgreSQL driver. The `users` model stores account records. No database migration or table-creation command was found. Reports, reviews, conversations, and pending edits remain in frontend state and are not persisted. Upstash Redis is initialized for selected request limits, not report storage.
+SQLAlchemy connects to a SQL database configured through `DATABASE_URL`; the backend requirements include the psycopg PostgreSQL driver. The `users` model stores account records, the `credits` model stores one credit balance and reserved-credit count per account, and the `report_analysis` model stores generated reports, critiques, sources, and timestamps per user. New accounts are initialized with 50 credits. A research request reserves 20 credits; a failed pipeline refunds the reservation, while a successful request retains the charge. No database migration or table-creation command was found, so these tables must be provisioned separately. Chat conversations and pending edits remain in frontend state and are not persisted. Upstash Redis is initialized for selected request limits.
 
 ### Authentication and security
 
-The application implements account registration/login and JWT-based authentication. Protected routes resolve the current user from an `access_token` cookie or an `Authorization: Bearer` header. This is basic authentication, not role-based authorization: no report ownership or saved report history is implemented. CORS and request validation remain separate controls and are not substitutes for authorization.
+The application implements account registration/login and JWT-based authentication. Protected routes resolve the current user from an `access_token` cookie or an `Authorization: Bearer` header. Saved report history is queried only for the authenticated owner; role-based authorization and shared-report access are not implemented. CORS and request validation remain separate controls and are not substitutes for authorization.
 
 ### APIs and integrations
 
@@ -274,7 +274,7 @@ This allows the user to see progress without waiting for one final response. It 
 
 ### 6.8 Data handling
 
-Request data consists of a topic, report text, chat messages, or requested edit instructions. It is sent to the service and, for AI operations, to external providers. The app does not save generated reports or chat history in a database.
+Request data consists of a topic, report text, chat messages, or requested edit instructions. It is sent to the service and, for AI operations, to external providers. Generated reports, critiques, and sources are saved to the database for the owning account; chat history is not persisted.
 
 Account records use the configured SQL database. No report/chat persistence, caching layer, or application-owned search index is implemented.
 
@@ -427,8 +427,10 @@ flowchart TD
 2. The service validates credentials, issues a JWT, and sets an HttpOnly cookie; the response also includes the token for the frontend.
 3. Protected requests provide the token as a bearer token or cookie.
 4. The shared current-user dependency decodes the token, loads the account, and rejects unauthenticated or inactive users.
+5. Registration initializes the account with 50 credits. The Home page obtains the current balance from the authenticated account-details route and refreshes the displayed balance when a research result arrives.
+6. Successful research is saved with its owner, report, critique, sources, and timestamps. The authenticated history route returns only that user's records for display in the report-history page.
 
-The current frontend also stores the returned token in local storage. The auth cookie is configured with `secure=False` in the current source, and should be hardened before HTTPS production use. Authentication does not associate reports with users because reports are not persisted.
+The current frontend also stores the returned token in local storage. The auth cookie is configured with `secure=False` in the current source, and should be hardened before HTTPS production use. Saved reports are associated with their owning user; retention and deletion controls are not implemented.
 
 ## 10. Algorithms and Technical Methodology
 
@@ -524,7 +526,7 @@ The current frontend also stores the returned token in local storage. The auth c
 
 ### 10.9 No retrieval index or report-storage algorithm
 
-The project does not use embeddings, vector search, persistent document indexing, database query optimization, caching, or a recommendation algorithm. The SQL database is used for user accounts, not research retrieval or report storage. These must not be presented as implemented features.
+The project does not use embeddings, vector search, persistent document indexing, database query optimization, caching, or a recommendation algorithm. The SQL database stores user accounts and completed reports, but is not used for research retrieval. These distinctions must be preserved when describing implemented features.
 
 ## 11. Database Architecture
 
@@ -538,14 +540,14 @@ The backend uses SQLAlchemy with a SQL database selected through `DATABASE_URL`;
 |---|---|
 | User account | Stored in the configured SQL database |
 | Topic | Frontend component state during the active session |
-| Report and feedback | Frontend component state after result delivery |
+| Completed report, critique, and sources | Stored in the SQL database, associated with the account that created the research |
 | Chat messages | Assistant component state |
 | Edit proposal | Assistant component state until accepted/rejected |
 | Search metadata | Used during request processing; not saved as durable history |
 
 ### Data flow
 
-Account records are stored in the configured SQL database. Research input is sent to the application service for processing; generated report data and feedback return to the browser and are not saved server-side. The browser retains the active report view state.
+Account records and completed research reports are stored in the configured SQL database. Research input is sent to the application service for processing; the generated report, critique, and sources are saved for the authenticated user and returned to the browser. The history page loads these records newest first. Chat messages and pending edits remain browser state.
 
 ### Conceptual data model
 
@@ -561,14 +563,16 @@ flowchart LR
     REPORT --> EDIT[Pending edit proposal]
     EDIT -->|Accepted| REPORT
     EDIT -->|Rejected| REPORT
-    REPORT -. not persisted .-> SESSION[Browser session state]
-    REVIEW -. not persisted .-> SESSION
+    REPORT -->|saved per user| DB[(SQL database)]
+    REVIEW -->|saved per user| DB
+    SOURCES -->|saved per user| DB
+    REPORT -. active view .-> SESSION[Browser session state]
     CHAT -. not persisted .-> SESSION
 ```
 
 ### Future storage considerations
 
-User accounts are already stored in the configured SQL database. If report persistence is added, the project should first define ownership, retention, deletion, privacy expectations, provider data handling, and authorization. No report/chat persistence is implemented.
+User accounts and completed reports are stored in the configured SQL database, with reports associated with their owner. Future work should define retention, deletion, privacy expectations, and provider data handling. Persistent chat history is not implemented.
 
 ## 12. API Architecture
 
@@ -580,8 +584,9 @@ The service provides account registration/login/logout, account lookup, research
 |---|---|---|---|---|
 | POST | Register or log in | Account credentials | JWT and user details | Public; IP rate limited |
 | POST | Log out | Auth cookie | Cookie-clearing response | Public; IP rate limited; bearer token removal is client-side |
-| GET | Read account details | JWT cookie or bearer token | Current user details | Required |
-| POST | Start topic research | Topic text | Progress stream followed by result or error | Required; one request per account per hour |
+| GET | Read account details | JWT cookie or bearer token | Current user details and credit balance | Required |
+| GET | Open a saved report | Report ID and JWT cookie or bearer token | Owner-scoped report content, critique, and sources | Required |
+| POST | Start topic research | Topic text | Progress stream followed by result (including `credits_balance`) or error | Required; 20 credits per run; one request per account per hour |
 | POST | Ask about a report | Topic, report, and conversation messages | Answer text | Required; account rate limited |
 | POST | Request a report edit | Current report text and edit instruction | Proposed changes, updated draft, or no-change result | Required; account rate limited |
 | DELETE | Delete account | JWT cookie or bearer token | Placeholder acknowledgement | Required; deletion is not implemented |
@@ -592,6 +597,7 @@ Exact route paths and full schemas are intentionally omitted from this public sh
 
 - JSON request bodies are used for application actions.
 - Research progress is returned as a text event stream containing status, result, or error data.
+- The Home page loads the initial credit balance from account details and updates it from the `credits_balance` field in a research result event.
 - Chat and edit operations return JSON.
 - CORS allows configured frontend origins; CORS is not authentication.
 - Protected routes accept a JWT in the `access_token` cookie or bearer authorization header.
@@ -660,7 +666,7 @@ Capture genuine product screenshots and save them at the relative paths above to
 | SSE for progress | Fits a one-way progress/result stream during a research request | Durable jobs or bidirectional interaction would need a separate job/event design |
 | Separate report and review views | Keeps generated draft and critique distinguishable to users | Critique remains model-generated and requires human judgment |
 | User approval for suggested edits | Preserves a human decision point before changing current report state | Requires an additional review action |
-| Account-only database persistence | Stores user accounts without implying reports are saved before ownership/retention requirements are defined | No saved report history, sharing, or cross-session continuity |
+| Account-scoped report persistence | Saves generated reports, critiques, and sources for their owner and supports history retrieval | No shared reports, persistent chat history, or report retention controls |
 | Markdown report format | Readable in the app and portable through copy/download | Rich collaboration and document management are not provided |
 
 No measured framework comparison, model comparison, or cost analysis is available in the repository.
@@ -769,8 +775,8 @@ No caching, horizontal scaling, load balancing, or database scaling mechanism is
 
 ### Functional
 
-- No sharing, saved report history, or collaborative editing.
-- No persistent report storage.
+- No sharing, persistent chat history, or collaborative editing.
+- No report retention or deletion controls.
 - Report Q&A only receives the provided report and conversation; no separate retrieval index is present.
 - Current search and source-reading behavior is bounded.
 
@@ -831,7 +837,7 @@ The repository identifies Ultriti-Tech in backend package metadata but does not 
 | Backend development | FastAPI application, route composition, request schemas, research and assistant capabilities |
 | AI/ML integration | LangChain model/provider integration, report synthesis, critique, report Q&A, structured edit suggestions |
 | API engineering | JSON request/response capabilities and streamed research progress |
-| Data handling | User account records use the configured SQL database; research result/chat state remains in memory and no report persistence is implemented |
+| Data handling | User account and completed research records use the configured SQL database; chat and pending-edit state remain in memory |
 | Validation and error handling | Pydantic edit validation, API error mapping, patch-target safety checks, visible frontend errors |
 | Testing/debugging | Frontend build/lint, Python syntax compilation, selected browser layout checks |
 | Deployment/infrastructure | No complete deployment or infrastructure implementation is established by the repository |
@@ -854,7 +860,7 @@ ResearchMind demonstrates a full-stack AI-assisted research workflow: a user can
 
 Its technical contribution is a coherent prototype that joins research discovery, synthesis, review, and editing in one user experience. It also demonstrates a human-in-the-loop approach by keeping source inspection and approval of suggested edits with the user.
 
-The project should be understood as a prototype. It provides basic user identity and stores account records, but does not persist reports or conversations. Formal model-quality evaluation, a complete automated test suite, report ownership, account deletion, and production operations remain future work. Continued work on evidence traceability, privacy, testing, security, and durable processing would be needed before higher-stakes or broader deployment.
+The project should be understood as a prototype. It provides basic user identity and stores account records and per-user research reports, but does not persist conversations. Formal model-quality evaluation, a complete automated test suite, retention/deletion controls, and production operations remain future work. Continued work on evidence traceability, privacy, testing, security, and durable processing would be needed before higher-stakes or broader deployment.
 
 ## 23. References and Technical Resources
 

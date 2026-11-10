@@ -43,7 +43,7 @@
 
 ResearchMind is a browser-based AI research assistant. A user enters a topic and the application returns a structured Markdown report, source links, and a separate critique. The user can then inspect the report and review, ask questions grounded in the report, make direct edits, or request suggested edits that can be accepted or rejected before the report changes.
 
-The frontend is a React application. A Python FastAPI service coordinates research and model-provider operations. The active research workflow uses Firecrawl for news search, a webpage extraction tool, and Google Gemini through LangChain. Pipeline progress is streamed to the browser as Server-Sent Events (SSE). The application does not persist reports or conversations to a database.
+The frontend is a React application. A Python FastAPI service coordinates research and model-provider operations. The active research workflow uses Firecrawl for news search, a webpage extraction tool, and Google Gemini through LangChain. Pipeline progress is streamed to the browser as Server-Sent Events (SSE). Completed reports, critiques, and sources are saved per user; conversations are not persisted.
 
 The project addresses the effort involved in collecting and organizing initial research material. Its expected benefit is a faster first draft and a convenient human-review workflow; the repository contains no user study or measured productivity impact. Generated reports are not guaranteed to be complete or accurate and should be checked against their linked sources. The current implementation is a working prototype, not a fully tested production service.
 
@@ -94,8 +94,7 @@ The implemented scope includes the research workflow and a basic account workflo
 
 ### 3.7 Limitations
 
-- User accounts are stored in the configured SQL database, but there are no roles or per-report ownership rules.
-- Reports, feedback, and conversations are not durably stored; account deletion is currently a placeholder.
+- User accounts and generated reports are stored in the configured SQL database; reports are associated with their owning user. Chat conversations are not durably stored; account deletion is currently a placeholder.
 - The repository does not include a database migration or table-creation command.
 - Research, chat, and edit features depend on configured external services and network availability.
 - Search results and page text are deliberately bounded in the current implementation.
@@ -162,7 +161,7 @@ Environment variable **names** referenced in source/configuration include `FIREC
 | Interoperability | Browser and service communicate using JSON and an SSE research stream |
 | Configuration | Frontend base URL and service credentials are configured through environment variables |
 | Input validation | Pydantic validates request structures; edit requests have specific length, size, and filename validation |
-| Security | JWT authentication and selected Redis-backed rate limits are implemented; roles, report ownership, and production hardening remain incomplete |
+| Security | JWT authentication and selected Redis-backed rate limits are implemented; roles, shared-report access, and production hardening remain incomplete |
 | Performance | No latency targets, load tests, or benchmarks are declared |
 | Reliability | Provider failures are surfaced, but retries, cancellation, and durable background jobs are not implemented |
 | Accessibility | Some labels and live regions exist; no formal accessibility audit is documented |
@@ -186,7 +185,7 @@ Environment variable **names** referenced in source/configuration include `FIREC
 | Page extraction | Requests, Beautiful Soup 4, lxml | Fetch HTML and extract readable text |
 | Configuration | `python-dotenv` | Load environment variables from `.env` files |
 | API communication | JSON over HTTP; Server-Sent Events | Frontend/service communication and streaming research progress |
-| Database | SQLAlchemy, configured SQL database, psycopg driver | Persists user account records; reports and conversations are not persisted |
+| Database | SQLAlchemy, configured SQL database, psycopg driver | Persists user accounts and report records; chat conversations are not persisted |
 | Rate limiting | Upstash Redis | Supports selected IP- and account-based request limits |
 | Deployment | No complete deployment platform/configuration declared | A Netlify origin appears in CORS configuration, but this alone does not establish a deployed service |
 | Development tools | npm, ESLint, Vite, Python `compileall`, `uv_build` declaration | Frontend scripts, linting, build, Python package build metadata/syntax checks |
@@ -205,7 +204,7 @@ Environment variable **names** referenced in source/configuration include `FIREC
 
 **Advantages:** Component reuse, declarative rendering, and an established ecosystem.
 
-**Limitations:** Current report and conversation state is not persisted across reloads; no frontend test framework is declared.
+**Limitations:** Current chat conversation state is not persisted across reloads; saved report records are available through the report-history route. No frontend test framework is declared.
 
 ### 7.2 Vite
 
@@ -339,13 +338,13 @@ Environment variable **names** referenced in source/configuration include `FIREC
 
 ### 7.13 Account database and report storage
 
-SQLAlchemy and a configured SQL database are used for user account records. The repository has no database migration or table-creation command. Research reports, feedback, and conversations are not durably stored by the application.
+SQLAlchemy and a configured SQL database store user account records, credit balances, and generated report records (including critique and sources). The repository has no database migration or table-creation command. Chat conversations are not durably stored by the application.
 
 ## 8. System Architecture
 
 ### 8.1 Overall architecture
 
-The application has a React/Vite frontend and a Python/FastAPI service. The frontend sends account, research, report-chat, and edit requests to the service. The service uses a configured SQL database for account records, Upstash Redis for selected rate limits, and Firecrawl and hosted language-model integrations for its active AI-assisted features. Research progress is streamed to the frontend. The browser holds the active report and conversation state; reports and chats are not persisted.
+The application has a React/Vite frontend and a Python/FastAPI service. The frontend sends account, research, report-history, report-chat, and edit requests to the service. The service uses a configured SQL database for account, credit, and report records, Upstash Redis for selected rate limits, and Firecrawl and hosted language-model integrations for its active AI-assisted features. Research progress is streamed to the frontend. The browser holds the active report and conversation state; saved reports can be loaded from the database, while chats are not persisted.
 
 ### 8.2 Architecture diagram
 
@@ -383,7 +382,7 @@ The active research process consists of a news search, a reader-agent invocation
 
 ### 8.5 Database interaction
 
-The backend uses SQLAlchemy to load and store user account records in the configured SQL database. Redis is used by the selected rate-limit dependencies. The active browser session contains report and conversation state; refreshing or leaving the page does not load a saved report record.
+The backend uses SQLAlchemy to load and store user account, credit, and report records in the configured SQL database. Redis is used by the selected rate-limit dependencies. The active browser session contains conversation state; saved reports can be retrieved from the user's report history.
 
 ### 8.6 External services
 
@@ -457,7 +456,7 @@ The app now has registered users and authenticated requests, but does not define
 
 | Role | Permissions / available functions | Restrictions |
 |---|---|---|
-| Registered user | Sign in and access authenticated research, report chat/edit, and profile routes | No role restrictions, report ownership, or saved report/chat history |
+| Registered user | Sign in and access authenticated research, report history, report chat/edit, and profile routes | No role restrictions or persistent chat history |
 | Anonymous visitor | Register or log in; access routes explicitly left public, including IP-limited registration/login | Cannot call account-protected routes without a valid token |
 | AI assistant | Product capability that responds to questions or creates an edit proposal | Not an authenticated user role; output is not authoritative and requires user review |
 
@@ -528,17 +527,17 @@ sequenceDiagram
 
 ### 11.5 Authentication and authorization
 
-Registration and login create a JWT associated with the user ID. The backend sets an HttpOnly cookie and returns the token in the response; the frontend also sends it in an `Authorization: Bearer` header. The shared `CurrentUser` dependency accepts either the cookie or bearer token, validates the JWT, loads the account, and rejects missing/invalid credentials with HTTP 401 or inactive accounts with HTTP 403. CORS remains a browser-origin policy, not an identity mechanism. Authentication does not provide report ownership because reports and conversations are not persisted.
+Registration and login create a JWT associated with the user ID. The backend sets an HttpOnly cookie and returns the token in the response; the frontend also sends it in an `Authorization: Bearer` header. The shared `CurrentUser` dependency accepts either the cookie or bearer token, validates the JWT, loads the account, and rejects missing/invalid credentials with HTTP 401 or inactive accounts with HTTP 403. Research records are associated with their owner, and history queries filter by the authenticated user. CORS remains a browser-origin policy, not an identity mechanism.
 
 ## 12. Database Design
 
 ### 12.1 Database technology
 
-SQLAlchemy connects to the configured SQL database using `DATABASE_URL`; the requirements include the psycopg PostgreSQL driver. The `users` table model stores account identity and status fields, including email, username, password hash, active status, and timestamps. No migration or automatic table-creation command was found in the repository.
+SQLAlchemy connects to the configured SQL database using `DATABASE_URL`; the requirements include the psycopg PostgreSQL driver. The `users` table model stores account identity and status fields, including email, username, password hash, active status, and timestamps. The `credits` table stores a unique credit account per user, with balance and reserved-credit fields. Registration grants 50 credits; each research run reserves 20, refunds the charge on pipeline failure, and retains it on success. No migration or automatic table-creation command was found in the repository, so both tables must be provisioned separately.
 
 ### 12.2 Persistence behavior
 
-User account records are stored in the configured SQL database. Current topic, report, feedback, chat messages, and pending edit remain in frontend component state; they are not saved as durable server-side records. A page refresh or new session does not restore prior research work.
+User account records, credit balances, and completed research records are stored in the configured SQL database. A report record includes its title/topic, generated report, critique, sources, and timestamps. Current chat messages and pending edits remain in frontend component state and are not saved as durable server-side records. Saved reports are available from the history route after a page refresh.
 
 ### 12.3 In-memory request and result structures
 
@@ -549,11 +548,11 @@ User account records are stored in the configured SQL database. Current topic, r
 | Report chat request | `topic`, `report`, `messages` | Question answering about report |
 | News article | `title`, `url`, `snippet`, `source`, `date` | Normalized search result metadata |
 | Search result | `query`, `count`, `articles` | Search operation output |
-| Research result event | `type`, `report`, `feedback`, `sources` | Completed research stream result |
+| Research result event | `type`, `report`, `feedback`, `sources`, `credits_balance`, `credits_reserved`, `report_id` | Completed research result, saved report identifier, and account credit state |
 | Edit request | `code`, `instruction`, `file_name` | Proposed report edit input |
 | Patch change | `old_text`, `new_text`, optional contexts, `reason` | A structured text replacement |
 
-The persisted user model is not connected to persisted report/chat entities; no report ownership relationships are implemented.
+Report records include the owning user ID; chat messages and conversation history are not persisted.
 
 ## 13. API Documentation
 
@@ -563,10 +562,12 @@ All routes below are mounted below the `/api/v1` prefix. Authentication-protecte
 
 | Method | Route | Authentication | Behavior |
 |---|---|---|---|
-| POST | `/api/v1/auth/register` | Public; IP rate limited | Create an account and return a JWT and user details. |
-| POST | `/api/v1/auth/login` | Public; IP rate limited | Validate credentials and return a JWT and user details. |
+| POST | `/api/v1/auth/register` | Public; IP rate limited | Create an account with 50 credits and return a JWT, user details, and balance. |
+| POST | `/api/v1/auth/login` | Public; IP rate limited | Validate credentials and return a JWT, user details, and current balance. |
 | POST | `/api/v1/auth/logout` | Public; IP rate limited | Clear the auth cookie; the client must also remove a locally stored bearer token. |
-| GET | `/api/v1/users/getUser` | Required | Return the current user's account details. |
+| GET | `/api/v1/users/getUser` | Required | Return the current user's account details and credit balance. |
+| GET | `/api/v1/research/history` | Required | Return the current user's saved reports with report content, critique, status, and timestamps, newest first. |
+| GET | `/api/v1/research/history/{report_id}` | Required | Return one saved report, including sources, only when it belongs to the authenticated user. |
 | DELETE | `/api/v1/users/account` | Required | Placeholder response only; it does not delete the account. |
 
 ### 13.2 `POST /api/v1/research/`
@@ -574,6 +575,8 @@ All routes below are mounted below the `/api/v1` prefix. Authentication-protecte
 **Purpose:** Run research and stream progress/result/error events.
 
 **Authentication and limit:** Requires an authenticated account and is limited to one request per account per hour.
+
+**Credits:** A request reserves 20 credits before starting the pipeline. A successful result retains the charge; a failed pipeline refunds it. The Home page displays the balance returned by `/api/v1/users/getUser` and updates it from the `credits_balance` value in the result event.
 
 **Request body:**
 
@@ -606,6 +609,8 @@ Result event:
   "type": "result",
   "report": "Markdown report text",
   "feedback": "Critique text",
+  "credits_balance": 30,
+  "credits_reserved": 20,
   "sources": [
     {
       "title": "Source title",
@@ -862,7 +867,7 @@ Research and report chat models define field types and the role literal but do n
 - CORS allows the configured frontend origins; CORS does not authenticate users.
 - Registration/login, JWT validation, and authenticated current-user resolution are implemented.
 - Selected registration/login routes have IP-based limits; research and report chat/edit routes have account-based Redis limits.
-- No roles, saved reports, report ownership, or persistent report access rules are implemented.
+- No roles or shared-report access controls are implemented; saved reports are filtered by their owning user.
 - The account deletion route currently returns a placeholder response and does not delete data.
 - The auth cookie is currently configured with `secure=False`; production cookie and token-storage settings need review.
 - The webpage extraction tool retrieves a model-selected public URL; URL allowlisting is not evident in the inspected implementation.
@@ -919,6 +924,7 @@ Build, lint, syntax, and selected layout checks do not prove model accuracy, pro
 - Report-grounded assistant chat.
 - Structured edit proposals with user accept/reject flow.
 - Request validation for edit inputs.
+- Account credit balances: new accounts receive 50 credits, research reserves 20 per run, failures refund the charge, and the Home page displays the balance from the account endpoint and research result events.
 
 ### 17.2 Observed results
 
@@ -941,8 +947,8 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 - The model selects a source for deeper reading; only that selected source is scraped by the reader tool flow.
 - A daemon-thread/in-memory-queue pattern does not provide durable background jobs or cancellation.
 - Model-generated reports and critiques are not independently validated.
-- User accounts are persisted, but reports, chat history, and saved research are not.
-- Account deletion is not implemented; roles and per-report ownership are absent.
+- User accounts and research reports are persisted; chat history is not.
+- Account deletion is not implemented; roles and shared-report access are absent.
 - No automated test suite or formal model evaluation is declared.
 - Backend dependency declarations are inconsistent.
 - Groq is configured but not wired into the active model flows.
@@ -956,7 +962,7 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 4. Improve source provenance and map report claims more directly to evidence.
 5. Evaluate source relevance, factuality, and answer grounding against a reviewed dataset.
 6. Add role/ownership policies and a working account-deletion flow; define privacy and retention requirements.
-7. Add report persistence only after defining ownership, retention, and deletion requirements.
+7. Define report retention and deletion policies and add controls to support them.
 8. Implement and test provider selection/fallback before presenting Groq as an available alternative.
 9. Harden and test the existing rate limits; add service observability and health checks for public deployment.
 10. Establish a deployment configuration and CI workflow.
@@ -967,7 +973,7 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 
 ResearchMind is a working prototype that combines a browser-based research workspace with a Python service and external research and generative-AI integrations. Its implemented user features include topic research, progress visibility, source-linked report generation, separate critique, report chat, editing, export, and reviewable AI-suggested changes.
 
-The project demonstrates a full-stack AI product workflow, basic account authentication, selected rate limits, and a user-in-control approach to generated edits. User accounts are persisted, but reports and conversations are not. Outputs remain drafts that require verification. Automated test coverage, formal model evaluation, report ownership, account deletion, and complete production deployment controls remain future work.
+The project demonstrates a full-stack AI product workflow, basic account authentication, selected rate limits, saved per-user research history, and a user-in-control approach to generated edits. User accounts and research reports are persisted, but conversations are not. Outputs remain drafts that require verification. Automated test coverage, formal model evaluation, account deletion, and complete production deployment controls remain future work.
 
 ## 20. References
 

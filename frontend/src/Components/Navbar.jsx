@@ -10,7 +10,7 @@ const linkClass = ({ isActive }) =>
 
 export default function Navbar({credits = 0}) {
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--bg-base)]/80 border-b border-[var(--border-subtle)]">
+    <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--bg-base)]/80 border-b border-[var(--border-subtle)] w-full">
       <nav className="flex h-14 items-center justify-between px-4 sm:px-6">
         {/* Logo */}
         <NavLink to="/" className="flex items-center gap-2 group">
@@ -33,6 +33,9 @@ export default function Navbar({credits = 0}) {
           </NavLink>
           <NavLink to="/about" className={linkClass}>
             About
+          </NavLink>
+          <NavLink to="/reportHistory" className={linkClass}>
+            History
           </NavLink>
           <NavLink to="/logout" className={linkClass} end>
             Logout

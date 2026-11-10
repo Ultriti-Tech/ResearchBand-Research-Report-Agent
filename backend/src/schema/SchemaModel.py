@@ -1,7 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,ConfigDict
 from typing import Literal
 
 from typing import TypedDict
+from datetime import datetime
+from uuid import UUID
+
 
 class ResearchReq(BaseModel):
     topic: str
@@ -19,7 +22,17 @@ class ReportChatReq(BaseModel):
     report: str
     messages: list[ChatMessage]
     
-    
+class ReportHistoryResponse(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    report_content: str | None
+    report_critic: str | None
+    sources: list[dict[str, str]] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 
 class NewsArticle(TypedDict):
     title: str

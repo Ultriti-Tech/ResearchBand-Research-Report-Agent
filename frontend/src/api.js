@@ -39,6 +39,77 @@ export async function getUser() {
   }
 }
 
+// --------------------------
+// get report history
+export async function getReportHistory() {
+  try {
+    const res = await fetch(`${BASE}/api/v1/research/history`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: data,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      reports: data,
+    };
+  } catch (error) {
+    console.error("Get Report History Error:", error);
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
+export async function getReportHistoryItem(reportId) {
+  try {
+    const res = await fetch(
+      `${BASE}/api/v1/research/history/${encodeURIComponent(reportId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    const data = await res.json();
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: data,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      report: data,
+    };
+  } catch (error) {
+    console.error("Get Report History Item Error:", error);
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
 export async function runResearch(
   topic,
   reportFormat = "",
@@ -78,7 +149,6 @@ export async function runResearch(
     const decoder = new TextDecoder();
     let buffer = "";
 
-    const credit_p = 0;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -99,7 +169,6 @@ export async function runResearch(
             console.log("credit balance : ", event.balance);
             console.log("reserved baance : ", event.reserved_credits);
             setCredits(event.balance);
-            credit_p = event.balance;
           }
           onEvent?.(event);
         }

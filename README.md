@@ -39,15 +39,17 @@ The project is intended for students, analysts, writers, product teams, and othe
 - **Visible progress:** Follow status updates while a report is being prepared.
 - **Source links and review:** Inspect returned sources and a critique alongside the report.
 - **Report-focused assistant:** Ask follow-up questions in the context of the current report.
+- **Research history:** Revisit saved reports with their title, preview, creation date, and critique.
 - **User-controlled edits:** Request report changes and review proposed edits before applying them.
 - **Export and editing controls:** Copy, download, and directly edit report content.
 - **Accounts and sign-in:** Register and log in; authenticated routes accept the JWT as a bearer token or cookie.
+- **Research credits:** New accounts start with 50 credits; a research run reserves 20 credits, refunds them if the run fails, and keeps the charge if it succeeds. The workspace displays the account balance.
 - **Request limits:** Redis-backed limits apply to selected account and IP-based routes.
 - **Responsive workspace:** Use the report and assistant layout across supported screen sizes.
 
 ### Not implemented / not claimed
 
-- Role-based access, saved report history, or persistent chat/report data.
+- Role-based access or persistent chat history.
 - Account deletion (the current endpoint is a placeholder) or enterprise administration.
 - Formal model-quality evaluation or measured productivity outcomes.
 - Production-grade operational guarantees.
@@ -83,7 +85,7 @@ flowchart LR
     API -->|Answer or proposed edit| UI
 ```
 
-This is a high-level product view, not a complete internal design specification. A configured SQL database stores user account records, and Redis supports selected rate limits. Research reports and conversations are not durably stored.
+This is a high-level product view, not a complete internal design specification. A configured SQL database stores user accounts, research reports, critiques, and sources; Redis supports selected rate limits. Chat conversations are not durably stored.
 
 ## Technology stack
 
@@ -98,7 +100,7 @@ This is a high-level product view, not a complete internal design specification.
 | Generative AI | Google Gemini through `langchain-google-genai` | Report and report-assistant functionality |
 | Web research | Firecrawl through `firecrawl-py` | External research/search capability |
 | Other configured integration | Groq through `langchain-groq` | Dependency is present; no active product flow was verified using it |
-| Account data | SQLAlchemy and configured SQL database (`DATABASE_URL`) | User account records; no report/chat history |
+| Account and report data | SQLAlchemy and configured SQL database (`DATABASE_URL`) | User accounts and generated research reports; chat history is not persisted |
 | Rate limiting | Upstash Redis | Shared counters for selected IP- and account-based limits |
 | Development tools | npm, ESLint, Python, pip | Frontend dependency management, linting, and backend setup |
 
@@ -215,12 +217,14 @@ These are the application routes mounted under `/api/v1`. Account and sign-in ro
 
 | Method | Endpoint | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/auth/register` | Register an account and return a JWT. |
-| `POST` | `/api/v1/auth/login` | Authenticate an account and return a JWT. |
+| `POST` | `/api/v1/auth/register` | Register an account, initialize its 50-credit balance, and return a JWT and account details. |
+| `POST` | `/api/v1/auth/login` | Authenticate an account and return a JWT, account details, and current credit balance. |
 | `POST` | `/api/v1/auth/logout` | Clear the auth cookie; clients must also remove any locally stored bearer token. |
-| `GET` | `/api/v1/users/getUser` | Return the authenticated user's account details. |
+| `GET` | `/api/v1/users/getUser` | Return the authenticated user's account details and current credit balance. |
+| `GET` | `/api/v1/research/history` | Return the authenticated user's saved reports, including report content and critique, newest first. |
+| `GET` | `/api/v1/research/history/{report_id}` | Return one saved report with its sources; only the owning user can access it. |
 | `DELETE` | `/api/v1/users/account` | Placeholder only; currently returns the authenticated user ID and does not delete the account. |
-| `POST` | `/api/v1/research/` | Start authenticated topic research and stream progress and results using Server-Sent Events. Limited to one request per account per hour. |
+| `POST` | `/api/v1/research/` | Reserve 20 credits and start authenticated topic research; stream progress, result (including `credits_balance`), or error using Server-Sent Events. Failed runs refund the charge. Limited to one request per account per hour. |
 | `POST` | `/api/v1/chatagent/` | Ask an authenticated report-focused follow-up question; returns a JSON answer. This route is excluded from the generated OpenAPI schema. |
 | `POST` | `/api/v1/chatagent/editchat` | Request an authenticated report edit and receive a proposed change for user review. |
 
@@ -231,9 +235,10 @@ Request schemas and implementation details are documented in [PROJECT_REPORT.md]
 - **Human review is part of the workflow:** source links are available for inspection, and assistant-proposed changes are reviewable before use.
 - **Progressive feedback:** the research request provides streamed progress/results rather than requiring users to wait without status.
 - **Typed service boundary:** FastAPI and Pydantic are used for HTTP routing and request validation.
-- **Account data only:** user records are stored in the configured SQL database; reports and conversations are not persisted.
+- **Persisted research:** report content, critique, sources, and timestamps are stored with the owning account; chat conversations are not persisted.
+- **Credit balance:** account credit balances are stored with account data. The Home page loads the initial value from `/api/v1/users/getUser` and updates it from the research result event.
 - **Authentication and limits:** authenticated routes resolve the user from a JWT supplied in a bearer header or cookie; selected routes use Redis-backed IP/account limits.
-- **Security scope:** the app has no roles or report ownership/history. The current auth cookie is configured with `secure=False`, and account deletion is not implemented; further security work is needed before public production use.
+- **Security scope:** the app has no roles or shared-report access controls. The current auth cookie is configured with `secure=False`, and account deletion is not implemented; further security work is needed before public production use.
 
 ## Validation, limitations, and roadmap
 
@@ -244,7 +249,7 @@ Frontend build and lint checks and backend Python compilation were run during de
 ### Current limitations
 
 - Generated research and answers may be incomplete or incorrect; users must validate sources and claims.
-- No saved report/chat history, role-based access, or implemented account deletion.
+- No persistent chat history, role-based access, or implemented account deletion.
 - External integrations require valid configuration and network access.
 - The repository does not specify a project license.
 - No genuine product screenshots or measured performance results are currently included.

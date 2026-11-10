@@ -23,6 +23,7 @@ export default function HomePage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+  
   const [isFormatUi, setisFormatUi] = useState(false);
   const [reportFormat, setreportFormat] = useState(null);
   const [isFloatingAlert, setisFloatingAlert] = useState(false);
@@ -93,11 +94,13 @@ export default function HomePage() {
 
       if (!active) return;
       if (!userDetails.ok) {
-        setError(userDetails.error?.detail || "Unable to load account details.");
+        setError(
+          userDetails.error?.detail || "Unable to load account details.",
+        );
         return;
       }
 
-      console.log('userDetails', userDetails)
+      console.log("userDetails", userDetails);
 
       if (typeof userDetails.credits === "number") {
         setCredits(userDetails.credits);
@@ -113,7 +116,9 @@ export default function HomePage() {
 
   return (
     <main className="workspace-main">
-      <Navbar credits={Credits} />
+      <nav className="navbarFrame">
+        <Navbar credits={Credits} />
+      </nav>
       {isFloatingAlert ? (
         <>
           <div className="">
@@ -143,9 +148,9 @@ export default function HomePage() {
         <></>
       )}
 
-      <div className="workspace-grid  mt-[7vh]">
+      <div className="workspace-grid max-h-[93vh]  mt-[7vh]">
         {/* ---------------------- inout topic ui -------------------- */}
-        <section className="workspace-content space-y-6">
+        <section className="workspace-content space-y-6 max-h-[92vh] mt-1">
           {/* Header area */}
           <div className="max-w-2xl">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">
@@ -262,7 +267,7 @@ export default function HomePage() {
           <Sidebar statuses={statuses} />
 
           {/* Status / Error / Result */}
-          <div className="space-y-4 pb-10">
+          <div className="space-y-4">
             {error && (
               <div className="animate-fade-in rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-muted)] px-4 py-3">
                 <div className="flex items-start gap-2.5">
@@ -308,7 +313,7 @@ export default function HomePage() {
         </section>
 
         {/* -------------- chat bot ui ------------- */}
-        <div className="workspace-chat-panel">
+        <div className="workspace-chat-panel max-h-[100vh] mt-1">
           <ChatBot
             key={result?.topic || "empty"}
             topic={result?.topic}

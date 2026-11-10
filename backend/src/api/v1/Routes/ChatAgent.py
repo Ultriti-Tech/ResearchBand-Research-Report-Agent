@@ -13,6 +13,14 @@ from pydantic import BaseModel
 from typing import Literal
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 
+from typing import Annotated
+from sqlalchemy.orm import Session
+from sqlalchemy import select
+
+from src.db.database import get_db
+from src.models.chat_messages import ChatMessage
+from src.models.report_analysis import ReportAnalysis
+
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
@@ -48,7 +56,7 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
         )
     ],
 )
-def chat_about_report(req: ReportChatReq):
+def chat_about_report(req: ReportChatReq, db: Annotated[Session, Depends(get_db)]):
     if not req.messages or req.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="A user message is required.")
 

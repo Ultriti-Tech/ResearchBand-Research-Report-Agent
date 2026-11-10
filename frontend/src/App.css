@@ -103,7 +103,7 @@ body {
 
   .workspace-chat-panel {
     display: flex;
-    height: 94%;
+    height: 99%;
     min-height: 0;
     border-left: 1px solid var(--border-subtle);
     padding: clamp(1rem, 2.5vh, 1.75rem) 1rem;
