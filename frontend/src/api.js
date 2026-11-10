@@ -1,16 +1,56 @@
 const BASE = import.meta.env.VITE_BASE_URL;
-const token = localStorage.getItem("RHD_v1_dashed_t");
+const getToken = () => localStorage.getItem("RHD_v1_dashed_t");
 
-
-export async function runResearch(topic, reportFormat = "", onEvent) {
-
+// ---------------------
+// get current user details
+export async function getUser() {
   try {
+    const res = await fetch(`${BASE}/api/v1/users/getUser`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${getToken()}`,
+        "Content-Type": "application/json",
+      },
+    });
 
+    const data = await res.json();
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: data,
+      };
+    }
+
+    return {
+      ok: true,
+      status: res.status,
+      user: data.user,
+      credits: data.credits,
+    };
+  } catch (error) {
+    console.error("Get User Error:", error);
+
+    return {
+      ok: false,
+      error: error.message,
+    };
+  }
+}
+
+export async function runResearch(
+  topic,
+  reportFormat = "",
+  onEvent,
+  setCredits,
+) {
+  try {
     const res = await fetch(`${BASE}/api/v1/research/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${getToken()}`,
       },
       body: JSON.stringify({
         topic,
@@ -19,7 +59,6 @@ export async function runResearch(topic, reportFormat = "", onEvent) {
           "- Introduction - Key Findings (minimum 3 well-explained points) - Conclusion",
       }),
     });
-
 
     if (!res.ok || !res.body) {
       const error = await res.text();
@@ -39,6 +78,8 @@ export async function runResearch(topic, reportFormat = "", onEvent) {
     const decoder = new TextDecoder();
     let buffer = "";
 
+    const credit_p = 0;
+
     while (true) {
       const { done, value } = await reader.read();
 
@@ -53,12 +94,19 @@ export async function runResearch(topic, reportFormat = "", onEvent) {
         if (part.startsWith("data: ")) {
           const event = JSON.parse(part.slice(6));
           console.log("SSE event:", event);
+
+          if (event.type === "credits") {
+            console.log("credit balance : ", event.balance);
+            console.log("reserved baance : ", event.reserved_credits);
+            setCredits(event.balance);
+            credit_p = event.balance;
+          }
           onEvent?.(event);
         }
       }
     }
 
-    return res;
+    return res
   } catch (error) {
     console.error("Research fetch failed:", error);
     throw error;
@@ -71,7 +119,7 @@ export async function suggestReportEdit(instruction, report) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
     body: JSON.stringify({
       code: report,
@@ -96,7 +144,6 @@ export async function suggestReportEdit(instruction, report) {
   return proposal;
 }
 
-
 // -------------------------- Report Info Agent -----------------------
 export async function suggestReportInfo(topic, report, messages = []) {
   const payload = {
@@ -112,7 +159,7 @@ export async function suggestReportInfo(topic, report, messages = []) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${getToken()}`,
     },
     body: JSON.stringify(payload),
   });

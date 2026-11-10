@@ -24,6 +24,7 @@ from src.schema.Auth import UserResponse, RegisterRequest, LoginRequest
 from src.schema.user import LoginResponse, TokenResponse
 from src.db.database import get_db
 from src.models.user import User
+from src.models.credits import Credit
 from src.core.security import (
     hash_password,
     verify_password,
@@ -49,14 +50,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
     "/register",
     response_model=TokenResponse,
     dependencies=[
-        Depends(
-            sliding_window_limit(
-                scope="register",
-                limit=5,
-                window_seconds=300
-            )
-            )
-        ],
+        Depends(sliding_window_limit(scope="register", limit=5, window_seconds=300))
+    ],
 )
 def register(
     req: RegisterRequest, response: Response, db: Annotated[Session, Depends(get_db)]
@@ -96,6 +91,23 @@ def register(
         db.rollback()
         raise
 
+    credits = Credit(
+        user_id=user.id,
+        balance=50,
+        reserved_credits=0,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    db.add(credits)
+
+    try:
+        db.commit()
+        db.refresh(credits)
+    except Exception:
+        db.rollback()
+        raise
+
     access_token = create_access_token(subject=str(user.id))
 
     # -------------------------------------
@@ -121,6 +133,9 @@ def register(
             created_at=user.created_at,
             updated_at=user.updated_at,
         ),
+        message="User Register Successfull",
+        success=True,
+        credits=credits.balance,
     )
 
 
@@ -128,16 +143,10 @@ def register(
 # login user
 @router.post(
     "/login",
-    response_model=TokenResponse,
+    response_model=LoginResponse,
     dependencies=[
-        Depends(
-            sliding_window_limit(
-                scope="login",
-                limit=10,
-                window_seconds=300
-            )
-        )
-    ]
+        Depends(sliding_window_limit(scope="login", limit=10, window_seconds=300))
+    ],
 )
 def login(
     req: LoginRequest, response: Response, db: Annotated[Session, Depends(get_db)]
@@ -147,6 +156,7 @@ def login(
     password = str(req.password).strip().lower()
 
     user = db.scalar(select(User).where(User.email == email))
+    credits = db.scalar(select(Credit).where(Credit.user_id == user.id))
 
     if user is None or not verify_password(
         password=password, hashed_password=user.hashed_password if user else ""
@@ -188,9 +198,9 @@ def login(
             updated_at=user.updated_at,
         ),
         message="Login Successfull",
-        success=True
+        success=True,
+        credits=credits.balance,
     )
-
 
 
 # ---------------
@@ -207,9 +217,8 @@ def login(
     #     )
     # ],
 )
-
 def logout(response: Response):
-    
+
     response.delete_cookie(
         key="access_token",
         httponly=True,
@@ -218,6 +227,4 @@ def logout(response: Response):
         path="/",
     )
 
-    return {
-        "message": "Logged out successfully"
-    }
+    return {"message": "Logged out successfully"}

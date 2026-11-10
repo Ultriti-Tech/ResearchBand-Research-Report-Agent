@@ -4,8 +4,11 @@ import os
 import json
 import queue
 import threading
+from typing import Annotated
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 
 # from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -17,6 +20,13 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
 from src.schema.SchemaModel import ResearchReq
+
+
+from src.db.database import get_db
+from src.models.credits import Credit
+from src.models.user import User
+from src.dependencies.user import CurrentUser
+
 
 from src.core.rate_limiting import account_sliding_window_limit
 
@@ -37,7 +47,11 @@ router = APIRouter(prefix="/research", tags=["research"])
         )
     ],
 )
-def research(req: ResearchReq):
+def research(
+    req: ResearchReq,
+    db: Annotated[Session, Depends(get_db)],
+    user: CurrentUser,
+):
     print(req.topic)
     print(req.reportFormat)
     events = queue.Queue()
@@ -49,7 +63,26 @@ def research(req: ResearchReq):
 
     def worker():
         try:
-            print("="*50,req.reportFormat)
+            print("=" * 50, req.reportFormat)
+
+            # ----------------------
+            # reserve the credit for the process - 20
+
+            credits = db.scalar(select(Credit).where(Credit.user_id == user.id))
+
+            if not credits or credits.balance < 20:
+                raise HTTPException(status_code=400, detail="Insufficient credits")
+
+            credits.balance -= 20
+            credits.reserved_credits += 20
+
+            try:
+                db.commit()
+                db.refresh(credits)
+            except Exception:
+                db.rollback()
+                raise
+
             state = run_search_pipeline(req.topic, req.reportFormat, on_step=on_step)
             events.put(
                 {
@@ -57,10 +90,33 @@ def research(req: ResearchReq):
                     "report": state["report"],
                     "feedback": state["feedback"],
                     "sources": state["sources"],
+                    "credits_balance": credits.balance,
+                    "credits_reserved": credits.reserved_credits,
                 }
             )
+
+            credits.reserved_credits -= 20
+
+            try:
+                db.commit()
+                db.refresh(credits)
+            except Exception:
+                db.rollback()
+                raise
+
         except Exception as e:
             events.put({"type": "error", "step": current["step"], "message": str(e)})
+
+            credits.balance += 20
+            credits.reserved_credits -= 20
+
+            try:
+                db.commit()
+                db.refresh(credits)
+            except Exception:
+                db.rollback()
+                raise
+
         finally:
             events.put(None)  # signals end of stream
 

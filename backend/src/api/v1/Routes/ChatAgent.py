@@ -42,8 +42,8 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
         Depends(
             account_token_bucket_limit(
                 scope="chatagent",
-                capacity=10,
-                refill_per_second=10 / 60,
+                capacity=5,
+                refill_per_second=5 / 60,
             )
         )
     ],
@@ -87,8 +87,8 @@ def chat_about_report(req: ReportChatReq):
         Depends(
             account_token_bucket_limit(
                 scope="editchat",
-                capacity=10,
-                refill_per_second=10 / 60,
+                capacity=5,
+                refill_per_second=5 / 60,
             )
         )
     ],

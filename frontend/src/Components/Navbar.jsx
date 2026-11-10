@@ -8,7 +8,7 @@ const linkClass = ({ isActive }) =>
       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]",
   ].join(" ");
 
-export default function Navbar() {
+export default function Navbar({credits = 0}) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--bg-base)]/80 border-b border-[var(--border-subtle)]">
       <nav className="flex h-14 items-center justify-between px-4 sm:px-6">
@@ -24,6 +24,10 @@ export default function Navbar() {
 
         {/* Navigation */}
         <div className="flex items-center gap-1">
+          <div className={"relative px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-200 border border-amber-400 mr-5"} end>
+            {credits} credits
+          </div>
+
           <NavLink to="/" className={linkClass} end>
             Home
           </NavLink>

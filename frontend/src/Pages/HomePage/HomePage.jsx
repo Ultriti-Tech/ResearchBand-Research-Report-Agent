@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "../../Components/Sidebar";
 import ReportView from "../../Components/ReportView";
 import ChatBot from "../../Components/ChatBot";
 import { STEPS } from "../../steps";
-import { runResearch } from "../../api";
+import { getUser, runResearch } from "../../api";
 import FormatForm from "../../Components/FormatSubmitForm";
 import FloatingAlert from "../../Components/FloatingAlert";
+import Navbar from "../../Components/Navbar";
 
 const SUGGESTIONS = [
   "LLM agents 2025",
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [reportFormat, setreportFormat] = useState(null);
   const [isFloatingAlert, setisFloatingAlert] = useState(false);
   const [alertInformation, setalertInformation] = useState(null);
+  const [Credits, setCredits] = useState(0);
 
   const mark = (i, status) =>
     setStatuses((prev) => prev.map((s, idx) => (idx === i ? status : s)));
@@ -34,6 +36,9 @@ export default function HomePage() {
     if (ev.type === "status") {
       mark(stepIndex(ev.step), ev.status);
     } else if (ev.type === "result") {
+      if (typeof ev.credits_balance === "number") {
+        setCredits(ev.credits_balance);
+      }
       setResult({ topic, report: ev.report, feedback: ev.feedback });
     } else if (ev.type === "error") {
       if (ev.step) mark(stepIndex(ev.step), "error");
@@ -51,6 +56,8 @@ export default function HomePage() {
     try {
       const res = await runResearch(topic, reportFormat, handleEvent);
 
+      console.log("response run piplin", res);
+
       // ----------- success ( Reseach and Report Generation completed ) ----------------
       if (res.ok) {
         setisFloatingAlert(true);
@@ -62,7 +69,7 @@ export default function HomePage() {
       }
 
       // ----------- warning ( too many resuest) ----------------
-      if (res?.status === 429) {
+      if (res.status === 429) {
         setisFloatingAlert(true);
         setalertInformation({
           text: res.data.statusText,
@@ -78,8 +85,35 @@ export default function HomePage() {
     }
   };
 
+  useEffect(() => {
+    let active = true;
+
+    const loadCurrentUser = async () => {
+      const userDetails = await getUser();
+
+      if (!active) return;
+      if (!userDetails.ok) {
+        setError(userDetails.error?.detail || "Unable to load account details.");
+        return;
+      }
+
+      console.log('userDetails', userDetails)
+
+      if (typeof userDetails.credits === "number") {
+        setCredits(userDetails.credits);
+      }
+    };
+
+    loadCurrentUser();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <main className="workspace-main">
+      <Navbar credits={Credits} />
       {isFloatingAlert ? (
         <>
           <div className="">
@@ -109,7 +143,7 @@ export default function HomePage() {
         <></>
       )}
 
-      <div className="workspace-grid">
+      <div className="workspace-grid  mt-[7vh]">
         {/* ---------------------- inout topic ui -------------------- */}
         <section className="workspace-content space-y-6">
           {/* Header area */}
@@ -228,7 +262,7 @@ export default function HomePage() {
           <Sidebar statuses={statuses} />
 
           {/* Status / Error / Result */}
-          <div className="space-y-4">
+          <div className="space-y-4 pb-10">
             {error && (
               <div className="animate-fade-in rounded-[var(--radius-md)] border border-[var(--danger)]/30 bg-[var(--danger-muted)] px-4 py-3">
                 <div className="flex items-start gap-2.5">

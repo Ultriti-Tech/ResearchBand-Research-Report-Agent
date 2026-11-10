@@ -22,7 +22,7 @@ function AppLayout() {
 
   return (
     <div className={`app-shell${isWorkspace ? " app-shell--workspace" : ""}`}>
-      <Navbar />
+     
 
       <div className="app-content">
         <Routes>

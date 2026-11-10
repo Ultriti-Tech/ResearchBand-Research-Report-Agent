@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import Navbar from "../../Components/Navbar";
 
 const CAPABILITIES = [
   {
@@ -66,6 +67,7 @@ const AUDIENCES = [
 export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+      <Navbar />
       <section className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-raised)] px-6 py-9 shadow-[var(--shadow-card)] sm:px-10 sm:py-12">
         <div
           className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-20 blur-3xl"
@@ -209,8 +211,8 @@ export default function AboutPage() {
             A useful first step for curious minds and busy teams
           </h2>
           <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
-            The project is suited to exploratory, human-reviewed research—not
-            as a replacement for expert analysis or primary-source review.
+            The project is suited to exploratory, human-reviewed research—not as
+            a replacement for expert analysis or primary-source review.
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -245,9 +247,7 @@ export default function AboutPage() {
               Browser-based, responsive workspace
             </dd>
             <dt className="text-[var(--text-tertiary)]">Project stage</dt>
-            <dd className="text-[var(--text-primary)]">
-              Working prototype
-            </dd>
+            <dd className="text-[var(--text-primary)]">Working prototype</dd>
           </dl>
         </article>
         <article className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-5">
@@ -271,11 +271,11 @@ export default function AboutPage() {
           Use AI as a starting point, not the final authority
         </h2>
         <p className="mt-2 max-w-4xl text-sm leading-6 text-[var(--text-secondary)]">
-          Generated reports and answers can be incomplete or inaccurate.
-          Review the linked sources and independently verify important claims.
+          Generated reports and answers can be incomplete or inaccurate. Review
+          the linked sources and independently verify important claims.
           Suggested report changes are shown for your approval before they are
-          applied. This prototype does not provide user accounts or saved
-          report history, and its research features require external service
+          applied. This prototype does not provide user accounts or saved report
+          history, and its research features require external service
           configuration.
         </p>
       </aside>
