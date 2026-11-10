@@ -66,9 +66,12 @@ const AUDIENCES = [
 
 export default function AboutPage() {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-      <Navbar />
-      <section className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-raised)] px-6 py-9 shadow-[var(--shadow-card)] sm:px-10 sm:py-12">
+    <main className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8">
+      <nav className="navbarFrame">
+        <Navbar />
+      </nav>
+
+      <section className="relative overflow-hidden rounded-2xl border border-[var(--border-default)] bg-[var(--bg-raised)] px-6 py-9 shadow-[var(--shadow-card)] sm:px-10 sm:py-12 mt-10">
         <div
           className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full opacity-20 blur-3xl"
           style={{ background: "var(--accent)" }}

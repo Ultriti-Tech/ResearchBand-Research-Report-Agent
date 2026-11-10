@@ -182,7 +182,7 @@ def research(
 
 
 # -------------------------
-# report history
+# get all report history
 @router.get(
     "/history",
     response_model=list[ReportHistoryResponse],
@@ -215,6 +215,8 @@ def reportHistory(
             detail=str(e),
         )
 
+# ----------------------------------
+# get single report history 
 
 @router.get(
     "/history/{report_id}",

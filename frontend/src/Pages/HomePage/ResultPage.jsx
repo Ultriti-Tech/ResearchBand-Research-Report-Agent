@@ -59,6 +59,34 @@ export default function ResultPage() {
     );
   };
 
+  // useEffect(() => {
+  //   let active = true;
+
+  //   const loadCurrentUser = async () => {
+  //     const userDetails = await getUser();
+
+  //     if (!active) return;
+  //     if (!userDetails.ok) {
+  //       setError(
+  //         userDetails.error?.detail || "Unable to load account details.",
+  //       );
+  //       return;
+  //     }
+
+  //     console.log("userDetails", userDetails);
+
+  //     if (typeof userDetails.credits === "number") {
+  //       setCredits(userDetails.credits);
+  //     }
+  //   };
+
+  //   loadCurrentUser();
+
+  //   return () => {
+  //     active = false;
+  //   };
+  // }, []);
+
   return (
     <main className="workspace-main">
       <nav className="navbarFrame">
@@ -121,6 +149,7 @@ export default function ResultPage() {
 
         <aside className="workspace-chat-panel max-h-[100vh] mt-1">
           <ChatBot
+            setCredits={setCredits}
             key={report?.id || reportId}
             topic={report?.topic}
             report={report?.report}

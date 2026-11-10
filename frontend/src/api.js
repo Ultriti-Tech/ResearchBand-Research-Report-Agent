@@ -74,6 +74,8 @@ export async function getReportHistory() {
   }
 }
 
+// -------------------------------
+// get particular report history details
 export async function getReportHistoryItem(reportId) {
   try {
     const res = await fetch(
@@ -110,6 +112,8 @@ export async function getReportHistoryItem(reportId) {
   }
 }
 
+// ----------------------------------
+// run reaseach funtion
 export async function runResearch(
   topic,
   reportFormat = "",
@@ -182,7 +186,8 @@ export async function runResearch(
   }
 }
 
-// -------------------------- Report Editing Agent ----------------------
+// ------------------------------------
+// Report Editing Agent 
 export async function suggestReportEdit(instruction, report) {
   const res = await fetch(`${BASE}/api/v1/chatagent/editchat`, {
     method: "POST",
@@ -213,7 +218,8 @@ export async function suggestReportEdit(instruction, report) {
   return proposal;
 }
 
-// -------------------------- Report Info Agent -----------------------
+// -------------------------------------
+// Report Info Agent 
 export async function suggestReportInfo(topic, report, messages = []) {
   const payload = {
     topic,

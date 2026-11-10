@@ -7,13 +7,14 @@ const SUGGESTIONS = [
   "Add a concise executive summary",
 ];
 
-export default function ChatBot({ topic, report, onReportChange }) {
+export default function ChatBot({ topic, report, onReportChange,setCredits }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [pendingEdit, setPendingEdit] = useState(null);
   const messagesEndRef = useRef(null);
+  // const [credits, setCredits] = useState(0);
 
   const [isCodeFix, setisCodeFix] = useState(false);
 
@@ -34,6 +35,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
     try {
       if (isCodeFix) {
         const proposal = await suggestReportEdit(question, report);
+        setCredits(proposal.credits)
         if (!proposal.success || !proposal.changes?.length) {
           setMessages([
             ...nextMessages,
@@ -62,6 +64,8 @@ export default function ChatBot({ topic, report, onReportChange }) {
         }
       } else {
         const response = await suggestReportInfo(topic, report, nextMessages);
+
+        setCredits(response.credits)
         setMessages([
           ...nextMessages,
           { role: "assistant", content: response.answer },
@@ -97,6 +101,35 @@ export default function ChatBot({ topic, report, onReportChange }) {
       },
     ]);
   };
+
+
+  // useEffect(() => {
+  //     let active = true;
+  
+  //     const loadCurrentUser = async () => {
+  //       const userDetails = await getUser();
+  
+  //       if (!active) return;
+  //       if (!userDetails.ok) {
+  //         setError(
+  //           userDetails.error?.detail || "Unable to load account details.",
+  //         );
+  //         return;
+  //       }
+  
+  //       console.log("userDetails", userDetails);
+  
+  //       if (typeof userDetails.credits === "number") {
+  //         setCredits(userDetails.credits);
+  //       }
+  //     };
+  
+  //     loadCurrentUser();
+  
+  //     return () => {
+  //       active = false;
+  //     };
+  //   }, []);
 
   return (
     <section className="workspace-chat flex max-h-[90vh] min-h-0 flex-col overflow-hidden border border-[var(--border-default)] bg-[var(--bg-raised)] shadow-[var(--shadow-card)]">
@@ -341,7 +374,7 @@ export default function ChatBot({ topic, report, onReportChange }) {
           }}
           className="mb-2 inline-flex min-h-9 max-w-full items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] sm:text-[13px]"
         >
-          {isCodeFix ? "Switch to report chat" : "Switch to edit assistant"}
+          {isCodeFix ? "Switch to report chat ( 1 )" : "Switch to edit assistant ( 2 ) "}
         </button>
         <div className="flex items-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 focus-within:border-[var(--accent)]">
           <textarea

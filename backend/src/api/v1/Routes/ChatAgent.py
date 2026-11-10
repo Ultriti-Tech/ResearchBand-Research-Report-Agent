@@ -17,10 +17,6 @@ from typing import Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from src.db.database import get_db
-from src.models.chat_messages import ChatMessage
-from src.models.report_analysis import ReportAnalysis
-
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
 from src.dependencies.agents import gemini_model
@@ -29,6 +25,15 @@ from src.schema.ChatAgent import EditRequest
 from src.dependencies.tools import generate_patch
 from src.dependencies.patcher import apply_patch
 from src.dependencies.agents import chatAgent
+
+
+from src.db.database import get_db
+from src.models.chat_messages import ChatMessage
+from src.models.report_analysis import ReportAnalysis
+
+from src.models.credits import Credit
+from src.dependencies.user import CurrentUser
+
 
 from src.core.rate_limiting import (
     account_sliding_window_limit,
@@ -56,11 +61,24 @@ router = APIRouter(prefix="/chatagent", tags=["chatagent"])
         )
     ],
 )
-def chat_about_report(req: ReportChatReq, db: Annotated[Session, Depends(get_db)]):
+def chat_about_report(
+    req: ReportChatReq,
+    db: Annotated[Session, Depends(get_db)],
+    user: CurrentUser,
+):
     if not req.messages or req.messages[-1].role != "user":
         raise HTTPException(status_code=400, detail="A user message is required.")
 
+    credit_reserved = False
+
     # response = chatAgent(req)
+    credits = db.scalar(select(Credit).where(Credit.user_id == user.id))
+
+    if not credits or credits.balance < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Insufficient credits",
+        )
 
     conversation = [
         (
@@ -84,7 +102,18 @@ def chat_about_report(req: ReportChatReq, db: Annotated[Session, Depends(get_db)
             *conversation,
         ]
     )
-    return {"answer": to_text(response.content)}
+
+    # ---------------------
+    # Reserve credits
+    credits.balance -= 1
+    credits.reserved_credits += 1
+
+    db.commit()
+    db.refresh(credits)
+
+    credit_reserved = True
+
+    return {"answer": to_text(response.content), "credits": credits.balance}
 
 
 # ---------------------------------
@@ -101,12 +130,38 @@ def chat_about_report(req: ReportChatReq, db: Annotated[Session, Depends(get_db)
         )
     ],
 )
-def edit_code(request: EditRequest):
+def edit_code(
+    request: EditRequest,
+    db: Annotated[Session, Depends(get_db)],
+    user: CurrentUser,
+):
     try:
+
+        credit_reserved = False
+
+        # response = chatAgent(req)
+        credits = db.scalar(select(Credit).where(Credit.user_id == user.id))
+        
+        if not credits or credits.balance < 2:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Insufficient credits",
+                )
 
         print("instruction given : ", request.instruction)
         patch = generate_patch(request.code, request.instruction, request.file_name)
 
+        # ---------------------
+        # Reserve credits
+        credits.balance -= 2
+        credits.reserved_credits += 2
+
+        db.commit()
+        db.refresh(credits)
+
+        credit_reserved = True
+        
+        
         if not patch.changes:
             return {"success": False, "message": patch.explanation}
 
@@ -126,6 +181,7 @@ def edit_code(request: EditRequest):
             "changes": [change.model_dump() for change in patch.changes],
             "updated_code": updated,
             "diff": diff,
+            "credits":credits.balance
         }
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

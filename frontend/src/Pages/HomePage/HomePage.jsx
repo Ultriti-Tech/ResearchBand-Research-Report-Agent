@@ -23,7 +23,7 @@ export default function HomePage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
-  
+
   const [isFormatUi, setisFormatUi] = useState(false);
   const [reportFormat, setreportFormat] = useState(null);
   const [isFloatingAlert, setisFloatingAlert] = useState(false);
@@ -315,6 +315,7 @@ export default function HomePage() {
         {/* -------------- chat bot ui ------------- */}
         <div className="workspace-chat-panel max-h-[100vh] mt-1">
           <ChatBot
+            setCredits={setCredits}
             key={result?.topic || "empty"}
             topic={result?.topic}
             report={result?.report}
