@@ -158,7 +158,7 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
           </div>
           <div className="min-w-0">
             <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">
-              {isCodeFix ? "Edit Assistant ( 2 )" : "Report Assistant ( 1 )"}
+              {isCodeFix ? "Edit Assistant ( 2 credits )" : "Report Assistant ( 1 credit )"}
             </h2>
             <p className="truncate text-[12px] text-[var(--text-secondary)]">
               {topic
@@ -374,8 +374,8 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
           className="mb-2 inline-flex min-h-9 max-w-full items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)] sm:text-[13px]"
         >
           {isCodeFix
-            ? "Switch to report chat ( 1 )"
-            : "Switch to edit assistant ( 2 ) "}
+            ? "Switch to report chat"
+            : "Switch to edit assistant"}
         </button>
         <div className="flex items-end gap-2 rounded-xl border border-[var(--border-default)] bg-[var(--bg-surface)] p-2 focus-within:border-[var(--accent)]">
           <textarea

@@ -8,7 +8,7 @@ const linkClass = ({ isActive }) =>
       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]",
   ].join(" ");
 
-export default function Navbar({credits = 0}) {
+export default function Navbar({ credits = 0, setshowBillingPlan }) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-[var(--bg-base)]/80 border-b border-[var(--border-subtle)] w-full">
       <nav className="flex h-14 items-center justify-between px-4 sm:px-6">
@@ -24,9 +24,17 @@ export default function Navbar({credits = 0}) {
 
         {/* Navigation */}
         <div className="flex items-center gap-1">
-          <div className={"relative px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-200 border border-amber-400 mr-5"} end>
+          <button
+            type="button"
+            onClick={() => {
+              setshowBillingPlan(true);
+            }}
+            title="Daily credits reset every day at 12:00 AM IST."
+            aria-label={`${credits} credits. Daily credits reset every day at 12:00 AM IST.`}
+            className="relative mr-5 cursor-pointer rounded-md border border-amber-400 px-3 py-1.5 text-[13px] font-medium transition-colors duration-200"
+          >
             {credits} credits
-          </div>
+          </button>
 
           <NavLink to="/" className={linkClass} end>
             Home

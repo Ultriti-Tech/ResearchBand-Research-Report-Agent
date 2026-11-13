@@ -7,6 +7,7 @@ import { getUser, runResearch } from "../../api";
 import FormatForm from "../../Components/FormatSubmitForm";
 import FloatingAlert from "../../Components/FloatingAlert";
 import Navbar from "../../Components/Navbar";
+import Pricing from "../Payment/Payment"
 
 const SUGGESTIONS = [
   "LLM agents 2025",
@@ -29,6 +30,9 @@ export default function HomePage() {
   const [isFloatingAlert, setisFloatingAlert] = useState(false);
   const [alertInformation, setalertInformation] = useState(null);
   const [Credits, setCredits] = useState(0);
+  const [showBillingPlan, setshowBillingPlan] = useState(false);
+
+
 
   const mark = (i, status) =>
     setStatuses((prev) => prev.map((s, idx) => (idx === i ? status : s)));
@@ -48,6 +52,19 @@ export default function HomePage() {
   };
 
   const runPipeline = async () => {
+    console.log("error", error);
+
+    if (error === "Invalid or expired authentication token") {
+      setisFloatingAlert(true);
+      setalertInformation({
+        text: error,
+        desc: `Login to get enough tokens`,
+        type: "warning",
+      });
+
+      return;
+    }
+
     if (!topic.trim() || running) return;
     setRunning(true);
     setError("");
@@ -117,7 +134,7 @@ export default function HomePage() {
   return (
     <main className="workspace-main">
       <nav className="navbarFrame">
-        <Navbar credits={Credits} />
+        <Navbar credits={Credits} setshowBillingPlan={setshowBillingPlan} />
       </nav>
       {isFloatingAlert ? (
         <>
@@ -132,6 +149,8 @@ export default function HomePage() {
           </div>
         </>
       ) : null}
+
+      {showBillingPlan ? <div className="h-[90vh] w-[100%] flex items-center justify-center overflow-auto mt-[4vw] pt-[10vw]"><Pricing setshowBillingPlan={setshowBillingPlan}/></div> : null}
 
       {/* report format input ui */}
       {isFormatUi ? (
@@ -221,7 +240,7 @@ export default function HomePage() {
               <button
                 onClick={runPipeline}
                 disabled={running || !topic.trim()}
-                className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg bg-[var(--accent)] px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-[var(--accent)] px-5 py-2.5 text-[13px] font-semibold text-white shadow-sm transition-all hover:bg-[var(--accent-hover)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {running ? (
                   <>
@@ -241,7 +260,10 @@ export default function HomePage() {
                         strokeLinecap="round"
                       />
                     </svg>
-                    Start research
+                    <div className="flex flex-col items-center justify-center">
+                      <p>Start research</p>
+                      <p className="text-amber-100">20 credits</p>
+                    </div>
                   </>
                 )}
               </button>

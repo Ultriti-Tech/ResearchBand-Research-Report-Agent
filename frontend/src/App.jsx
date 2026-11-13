@@ -30,17 +30,17 @@ function AppLayout() {
           <Route
             path="/"
             element={
-              <UserProtectedWrapper>
+              // <UserProtectedWrapper>
                 <HomePage />
-              </UserProtectedWrapper>
+              // </UserProtectedWrapper>
             }
           />
           <Route
             path="/about"
             element={
-              <UserProtectedWrapper>
+              // <UserProtectedWrapper>
                 <AboutPage />
-              </UserProtectedWrapper>
+              // </UserProtectedWrapper>
             }
           />
 
