@@ -1,19 +1,13 @@
 import os
 import razorpay
-
-
-
-from dotenv import load_dotenv
 import time
 from decimal import Decimal
 
-
-
-load_dotenv()
+from src.config.settings import settings
 
 # Initialize Razorpay instance
 razorpay_client = razorpay.Client(
-    auth=(os.getenv("RAZORPAY_KEY_ID"), os.getenv("RAZORPAY_KEY_SECRET"))
+    auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
 )
 
 

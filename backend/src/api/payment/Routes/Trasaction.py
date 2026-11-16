@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.config.settings import settings
 from src.db.database import get_db
 from src.dependencies.user import CurrentUser
 from src.models.payment import Payment
@@ -16,7 +17,7 @@ from src.models.subscription import Subscription
 
 router = APIRouter(prefix="/transaction", tags=["Transactions"])
 
-RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+RAZORPAY_KEY_SECRET = settings.RAZORPAY_KEY_SECRET
 
 
 @router.post("/verify")
