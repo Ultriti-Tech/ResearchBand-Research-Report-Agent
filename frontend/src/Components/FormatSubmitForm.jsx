@@ -1,39 +1,22 @@
 import { useState } from "react";
 
 /**
- * FormatForm – UI only (React + Tailwind CSS).
- * Collects a format name (input) + detailed instructions (textarea)
- * and hands them to the parent via onSubmit({ format, instructions }).
- *
- * Usage:
- *   const [showFormat, setShowFormat] = useState(false);
- *   const [format, setFormat] = useState(null);
- *
- *   <button onClick={() => setShowFormat((v) => !v)}>Format</button>
- *   {showFormat && (
- *     <FormatForm
- *       initialValue={format}
- *       onSubmit={(f) => { setFormat(f); setShowFormat(false); }}
- *       onCancel={() => setShowFormat(false)}
- *     />
- *   )}
- *
- * Later, send it with the topic to your backend:
- *   body: JSON.stringify({ topic, format })
+ * FormatForm – UI for specifying customized report structure.
  */
 export default function FormatForm({ initialValue, onSubmit, onCancel }) {
-  const [format, setFormat] = useState(initialValue?.format ?? "");
+  const [format, setFormat] = useState(
+    typeof initialValue === "object" ? initialValue?.format ?? "" : "",
+  );
   const [instructions, setInstructions] = useState(
-    initialValue ?. instructions ?? initialValue,
+    typeof initialValue === "object"
+      ? initialValue?.instructions ?? ""
+      : initialValue || "",
   );
 
   const isEmpty = !format.trim() && !instructions.trim();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(
-      { instructions: instructions.trim() },
-    );
     onSubmit?.(instructions.trim());
     onCancel(false);
   };
@@ -42,24 +25,41 @@ export default function FormatForm({ initialValue, onSubmit, onCancel }) {
     <form
       onSubmit={handleSubmit}
       aria-label="Report format"
-      className="mt-3 w-full flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-zinc-950 p-5 text-zinc-100"
+      className="w-full flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-[#0f0f14] p-4 sm:p-6 text-zinc-100 shadow-2xl"
     >
+      <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <div>
+          <h3 className="text-base font-semibold text-white">Customize report format</h3>
+          <p className="text-xs text-zinc-400">Specify report style, sections, and tone</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onCancel(false)}
+          aria-label="Close"
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="format-name" className="text-sm text-zinc-400">
-          Format name
+        <label htmlFor="format-name" className="text-xs font-medium text-zinc-400">
+          Format name (optional)
         </label>
         <input
           id="format-name"
           type="text"
           value={format}
           onChange={(e) => setFormat(e.target.value)}
-          placeholder="e.g. Executive summary, Academic paper, Bullet brief"
-          className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-3 text-[15px] text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+          placeholder="e.g. Executive brief, Academic review, Action list"
+          className="w-full rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="format-instructions" className="text-sm text-zinc-400">
+        <label htmlFor="format-instructions" className="text-xs font-medium text-zinc-400">
           Format instructions
         </label>
         <textarea
@@ -67,28 +67,26 @@ export default function FormatForm({ initialValue, onSubmit, onCancel }) {
           rows={5}
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
-          placeholder="Describe how the report should look: sections, length, tone, citation style…"
-          className="min-h-[110px] w-full resize-y rounded-xl border border-zinc-800 bg-zinc-900 px-3.5 py-3 text-[15px] text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-500/30"
+          placeholder="Describe how the report should look: required sections, depth, tone, citations, bullet points…"
+          className="min-h-[120px] w-full resize-y rounded-xl border border-zinc-800 bg-zinc-900/90 px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50"
         />
-        <span className="self-end text-xs text-zinc-500">
+        <span className="self-end text-[11px] text-zinc-500">
           {instructions.length} characters
         </span>
       </div>
 
-      <div className="flex justify-end gap-2.5">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-2.5 pt-1">
         <button
           type="button"
-          onClick={() => {
-            onCancel(false);
-          }}
-          className="rounded-xl border border-zinc-800 px-4 py-2.5 text-sm text-zinc-300 transition hover:bg-zinc-900"
+          onClick={() => onCancel(false)}
+          className="w-full sm:w-auto rounded-xl border border-zinc-800 px-4 py-2.5 text-xs sm:text-sm font-medium text-zinc-300 transition hover:bg-zinc-800 active:scale-98"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isEmpty}
-          className="rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full sm:w-auto rounded-xl bg-orange-600 px-5 py-2.5 text-xs sm:text-sm font-semibold text-white transition hover:bg-orange-500 active:scale-98 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Save format
         </button>

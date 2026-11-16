@@ -9,40 +9,82 @@ from src.models.credits import Credit
 from src.db.database import get_db
 from src.dependencies.user import CurrentUser
 from src.schema.user import UserResponse, CurrentUserResponse
-from src.dependencies.helper import reset_daily_credits
+from src.dependencies.credit_restore_helper import (
+    reset_daily_credits,
+    reset_monthly_credits,
+)
+
+from src.models.subscription import Subscription
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-from src.core.rate_limiting import token_bucket_limit
+# from src.core.rate_limiting import token_bucket_limit
+# from datetime import datetime, timezone
+# from sqlalchemy import select
+
+# from src.models.subscription import Subscription
 
 
-# -------------------
-# get user detail
 @router.get(
     "/getUser",
     response_model=CurrentUserResponse,
-    dependencies=[
-        Depends(
-            token_bucket_limit(
-                scope="user_details",
-                capacity=10,
-                refill_per_second=10 / 60,
-            )
-        )
-    ],
+    # dependencies=[
+    #     Depends(
+    #         token_bucket_limit(
+    #             scope="user_details",
+    #             capacity=10,
+    #             refill_per_second=10 / 60,
+    #         )
+    #     )
+    # ],
 )
 def read_current_user(
     current_user: CurrentUser, db: Annotated[Session, Depends(get_db)]
 ):
-    
     credits = db.scalar(select(Credit).where(Credit.user_id == current_user.id))
-    credit_balance = credits.balance
 
-    reset_daily_credits(credits)
+    if not credits:
+        raise HTTPException(status_code=404, detail="Credit wallet not found")
 
+    # 1. Get the latest subscription
+    subscription = db.scalar(
+        select(Subscription)
+        .where(Subscription.user_id == current_user.id)
+        .order_by(Subscription.started_at.desc(), Subscription.id.desc())
+        .limit(1)
+    )
+
+    now = datetime.now(timezone.utc)
+
+    # 2. Check subscription expiry
+    if subscription:
+        if subscription.expires_at is not None and subscription.expires_at <= now:
+            subscription.status = "expired"
+            current_user.purchased = "FREE"
+
+        elif subscription.expires_at is None or subscription.expires_at > now:
+            current_user.purchased = subscription.plan_type.upper()
+
+    # 3. Restore credits according to current plan
+    plan = (current_user.purchased or "FREE").lower()
+
+    if plan == "free":
+        reset_daily_credits(credits=credits, current_user=current_user)
+
+    elif plan == "monthly":
+        reset_monthly_credits(
+            credits=credits, current_user=current_user, monthly_allowance=600
+        )
+
+    elif plan == "yearly":
+        reset_monthly_credits(
+            credits=credits, current_user=current_user, monthly_allowance=800
+        )
+
+    # 4. Save changes
     db.commit()
-    
+
     user = UserResponse(
         id=current_user.id,
         email=current_user.email,
@@ -55,13 +97,5 @@ def read_current_user(
 
     return CurrentUserResponse(
         user=user,
-        credits=credit_balance if credits else 0,
+        credits=credits.balance,
     )
-
-
-# ----------------------------------
-# delete account current user
-@router.delete("/account")
-def delete_account(current_user: CurrentUser):
-    # Add account deletion service and confirmation checks.
-    return {"message": "Authenticated account", "user_id": current_user.id}

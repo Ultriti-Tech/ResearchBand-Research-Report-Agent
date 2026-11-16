@@ -15,6 +15,7 @@ import LogoutPage from "./Pages/AuthPage/Logout";
 import PageNotFound from "./Pages/PageNotFound/PageNotFound";
 import ReportHistory from "./Pages/ReportHistory/ReportHistory";
 import ResultPage from "./Pages/HomePage/ResultPage";
+import Demopayment from "./Pages/Payment/demopayment";
 
 function AppLayout() {
   const { pathname } = useLocation();
@@ -31,7 +32,7 @@ function AppLayout() {
             path="/"
             element={
               // <UserProtectedWrapper>
-                <HomePage />
+              <HomePage />
               // </UserProtectedWrapper>
             }
           />
@@ -39,12 +40,20 @@ function AppLayout() {
             path="/about"
             element={
               // <UserProtectedWrapper>
-                <AboutPage />
+              <AboutPage />
               // </UserProtectedWrapper>
             }
           />
 
           {/* -------------- auth route ---------------- */}
+          <Route
+            path="/demopayment"
+            element={
+              <UserProtectedWrapper>
+                <Demopayment />
+              </UserProtectedWrapper>
+            }
+          />
           <Route
             path="/reportHistory"
             element={

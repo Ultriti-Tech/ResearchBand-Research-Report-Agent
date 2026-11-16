@@ -4,7 +4,7 @@ const TYPES = {
   success: { color: "#22c55e", icon: "M5 13l4 4L19 7" },
   error: { color: "#ef4444", icon: "M6 6l12 12M18 6L6 18" },
   warning: { color: "#f59e0b", icon: "M12 8v5M12 17h.01" },
-  info: { color: "#f97316", icon: "M12 11v5M12 8h.01" }, // theme orange
+  info: { color: "#f97316", icon: "M12 11v5M12 8h.01" },
 };
 
 const FloatingAlert = ({
@@ -34,10 +34,10 @@ const FloatingAlert = ({
 
       <div
         role="alert"
-        className="fixed right-5 top-20 z-50 w-[360px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-[#26262c] bg-[#0f0f13] shadow-2xl shadow-black/60"
+        className="fixed top-16 left-3 right-3 sm:left-auto sm:right-5 z-50 sm:w-[360px] overflow-hidden rounded-2xl border border-[#26262c] bg-[#0f0f13]/95 backdrop-blur-md shadow-2xl shadow-black/80"
         style={{ animation: "alert-in .25s ease-out" }}
       >
-        <div className="flex items-start gap-3 p-4">
+        <div className="flex items-start gap-3 p-3.5 sm:p-4">
           <span
             className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
             style={{ background: `${color}22` }}
@@ -64,7 +64,7 @@ const FloatingAlert = ({
               <p className="text-sm font-semibold text-zinc-100">{title}</p>
             )}
             <p
-              className={`text-sm text-zinc-400 ${title ? "mt-0.5" : "pt-1.5"}`}
+              className={`text-xs sm:text-sm text-zinc-400 leading-relaxed ${title ? "mt-0.5" : "pt-1"}`}
             >
               {message}
             </p>

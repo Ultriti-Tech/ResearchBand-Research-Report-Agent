@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 # import files
 from src.api.v1.routes import api_router
+from src.api.payment.routes import api_router_p
 from src.db.redis import redis_client
 
 
@@ -68,3 +69,4 @@ app.add_middleware(
 
 
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(api_router_p, prefix="/api/payment")
