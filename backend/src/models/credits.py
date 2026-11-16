@@ -40,7 +40,13 @@ class Credit(Base):
         nullable=False,
     )
 
-    last_reset_at: Mapped[datetime] = mapped_column(
+    last_daily_reset_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    
+    last_monthly_reset_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False,

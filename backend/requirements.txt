@@ -1,20 +1,35 @@
+# Web framework and ASGI server
 fastapi
 uvicorn
+python-multipart
+
+# Configuration and data validation
 pydantic[email]
 pydantic-settings
+python-dotenv
+
+# Database and ORM
 sqlalchemy
 psycopg[binary]
-PyJWT
-pwdlib[argon2]
+
+# Cache and rate limiting
 upstash-redis
 
+# Authentication and security
+PyJWT
+pwdlib[argon2]
+
+# Payment gateway
+razorpay
+
+# AI orchestration and models
 langchain
 langchain-core
 langgraph
 langchain-google-genai
 langchain-groq
 
-python-dotenv
+# Web scraping and tools
 firecrawl-py
 requests
 beautifulsoup4

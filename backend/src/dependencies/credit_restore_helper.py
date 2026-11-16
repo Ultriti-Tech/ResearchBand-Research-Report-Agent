@@ -1,4 +1,3 @@
-
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -7,7 +6,8 @@ from src.dependencies.user import CurrentUser
 
 IST = ZoneInfo("Asia/Kolkata")
 
-
+# ------------------------------------
+# dail reset for free version
 def reset_daily_credits(
     credits: Credit,
     current_user: CurrentUser
@@ -18,8 +18,7 @@ def reset_daily_credits(
         return
 
     now = datetime.now(IST)
-
-    last_reset = credits.last_reset_at
+    last_reset = credits.last_daily_reset_at
 
     if (
         last_reset is None
@@ -27,9 +26,10 @@ def reset_daily_credits(
     ):
         credits.balance = credits.daily_credit_limit
         credits.reserved_credits = 0
-        credits.last_reset_at = now
+        credits.last_daily_reset_at = now
 
-
+# ---------------------------------
+# monthly credit reset for [ monthly, yearly plan ]
 def reset_monthly_credits(
     credits: Credit,
     current_user: CurrentUser,
@@ -41,8 +41,7 @@ def reset_monthly_credits(
         return
 
     now = datetime.now(IST)
-
-    last_reset = credits.last_reset_at
+    last_reset = credits.last_monthly_reset_at
 
     if (
         last_reset is None
@@ -51,4 +50,4 @@ def reset_monthly_credits(
     ):
         credits.balance = monthly_allowance
         credits.reserved_credits = 0
-        credits.last_reset_at = now
+        credits.last_monthly_reset_at = now
