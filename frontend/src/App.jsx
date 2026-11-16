@@ -81,10 +81,22 @@ function AppLayout() {
   );
 }
 
+
 export default function App() {
-  return (
-    <Router>
+  const releaseBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  const pathname = window.location.pathname;
+
+  const isReleaseUrl =
+    pathname === releaseBase ||
+    pathname.startsWith(`${releaseBase}/`);
+
+  const basename = isReleaseUrl ? releaseBase : "";
+  
+    return (
+    <Router basename={basename}>
       <AppLayout />
     </Router>
   );
 }
+

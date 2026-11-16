@@ -42,7 +42,7 @@ const PLANS = [
   {
     id: "monthly",
     name: "Monthly",
-    price: 1,
+    price: 499,
     priceNote: "per month",
     credits: 600,
     creditNote: "every month",

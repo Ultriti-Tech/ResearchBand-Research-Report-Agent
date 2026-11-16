@@ -34,7 +34,7 @@ PLANS = {
     },
     "monthly": {
         "name": "Monthly",
-        "price": 1,
+        "price": 499,
         "credits": 600,
         "type": "subscription",
     },

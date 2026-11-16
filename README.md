@@ -36,16 +36,27 @@ The project is intended for students, analysts, writers, product teams, and othe
 ### Implemented
 
 - **Topic-based research:** Submit a topic and receive a structured initial report.
+- **Custom report format:** Specify custom section instructions, depth, tone, or citation preferences.
 - **Visible progress:** Follow status updates while a report is being prepared.
 - **Source links and review:** Inspect returned sources and a critique alongside the report.
 - **Report-focused assistant:** Ask follow-up questions in the context of the current report.
 - **Research history:** Revisit saved reports with their title, preview, creation date, and critique.
-- **User-controlled edits:** Request report changes and review proposed edits before applying them.
-- **Export and editing controls:** Copy, download, and directly edit report content.
-- **Accounts and sign-in:** Register and log in; authenticated routes accept the JWT as a bearer token or cookie.
-- **Research credits:** New accounts start with 50 credits; a research run reserves 20 credits, refunds them if the run fails, and keeps the charge if it succeeds. The workspace displays the account balance.
-- **Request limits:** Redis-backed limits apply to selected account and IP-based routes.
-- **Responsive workspace:** Use the report and assistant layout across supported screen sizes.
+- **User-controlled edits:** Request report changes and review proposed diffs before applying them.
+- **Export and editing controls:** Copy, download (Markdown, Word, PDF print), and directly edit report content.
+- **Accounts and sign-in:** Register and log in; authenticated routes accept the JWT as a bearer token or HttpOnly cookie.
+- **Research credits & billing:**
+  - New accounts receive 50 initial credits on signup.
+  - Research runs reserve 20 credits, refunded on pipeline error.
+  - Report chat costs 1 credit; AI edits cost 2 credits.
+  - Razorpay payment gateway integration supporting Free, Top-up (50 credits for ₹50), Monthly (600 credits for ₹499), and Yearly (800 credits/mo for ₹4,999) tiers.
+  - Separate tracking for daily (`last_daily_reset_at`) and monthly (`last_monthly_reset_at`) credit resets.
+- **Mobile-responsive workspace:**
+  - Responsive navigation with collapsible mobile drawer, touch targets, and compact credit balance indicator.
+  - Adaptive research input card (`flex-col sm:flex-row`).
+  - Mobile segmented view switcher (`📄 Report` vs `💬 AI Assistant`) on screens `< 900px` to avoid endless scrolling.
+  - Full-screen modal overlays for pricing, formatting, and responsive toasts.
+  - Horizontal overflow safeguards on Markdown tables, code blocks, and patch diffs.
+- **Request limits:** Redis-backed rate limits apply to selected account and IP-based routes.
 
 ### Not implemented / not claimed
 
@@ -72,11 +83,13 @@ The browser UI communicates with a FastAPI service. The service coordinates topi
 
 ```mermaid
 flowchart LR
-    U[User] --> UI[React web application]
+    U[User] --> UI[React 19 web application]
     UI -->|HTTP, JWT auth, streamed progress| API[FastAPI service]
-    API --> Search[External web research service]
-    API --> Model[Hosted generative AI]
-    API --> Accounts[(SQL user accounts)]
+    UI -->|Razorpay checkout| PG[Razorpay Payment Gateway]
+    PG -->|Payment verification| API
+    API --> Search[Firecrawl web search & scrape]
+    API --> Model[Google Gemini LLM]
+    API --> Accounts[(PostgreSQL database)]
     API --> Limits[(Upstash Redis rate limits)]
     Search --> API
     Model --> API
@@ -85,7 +98,7 @@ flowchart LR
     API -->|Answer or proposed edit| UI
 ```
 
-This is a high-level product view, not a complete internal design specification. A configured SQL database stores user accounts, research reports, critiques, and sources; Redis supports selected rate limits. Chat conversations are not durably stored.
+This is a high-level product view, not a complete internal design specification. A configured SQL database stores user accounts, research reports, critiques, subscriptions, payments, and credit transactions; Redis supports selected rate limits. Chat conversations are not durably stored.
 
 ## Technology stack
 
@@ -95,12 +108,12 @@ This is a high-level product view, not a complete internal design specification.
 | Frontend tooling | Vite 8 | Local development and frontend builds |
 | Styling | Tailwind CSS 4 and project CSS | Layout and presentation |
 | Backend | Python, FastAPI, Uvicorn | HTTP service and local ASGI server |
-| Validation | Pydantic | Request and data validation |
+| Validation | Pydantic, pydantic-settings | Request, response, and environment settings validation |
 | AI orchestration | LangChain, LangGraph | Integrating model and research workflows |
 | Generative AI | Google Gemini through `langchain-google-genai` | Report and report-assistant functionality |
 | Web research | Firecrawl through `firecrawl-py` | External research/search capability |
-| Other configured integration | Groq through `langchain-groq` | Dependency is present; no active product flow was verified using it |
-| Account and report data | SQLAlchemy and configured SQL database (`DATABASE_URL`) | User accounts and generated research reports; chat history is not persisted |
+| Payment gateway | Razorpay Python SDK, Razorpay Checkout JS | Order creation, payment verification, and billing |
+| Account, billing, and report data | SQLAlchemy, PostgreSQL (`psycopg`) | User accounts, credits, payments, subscriptions, and generated research reports |
 | Rate limiting | Upstash Redis | Shared counters for selected IP- and account-based limits |
 | Development tools | npm, ESLint, Python, pip | Frontend dependency management, linting, and backend setup |
 
@@ -109,23 +122,32 @@ This is a high-level product view, not a complete internal design specification.
 ```text
 .
 ├── backend/
-│   ├── main.py
-│   ├── requirements.txt
+│   ├── main.py                     # FastAPI entrypoint and route mounting
+│   ├── requirements.txt            # Python dependencies
+│   ├── pyproject.toml              # Python project metadata
 │   └── src/
-│       ├── api/          # HTTP routes
-│       ├── config/       # Application settings
-│       ├── core/         # Authentication and rate limiting
-│       ├── db/           # SQL database and Redis connections
-│       ├── dependencies/ # Research, assistant, and auth dependencies
-│       ├── models/       # SQLAlchemy models
-│       └── schema/       # Request and response models
+│       ├── api/
+│       │   ├── v1/                 # V1 API endpoints (auth, users, research, chat, credits)
+│       │   │   ├── routes.py
+│       │   │   └── Routes/
+│       │   └── payment/            # Payment endpoints (Razorpay orders, verification)
+│       │       ├── routes.py
+│       │       └── Routes/
+│       ├── config/                 # Pydantic application settings
+│       ├── core/                   # Authentication (JWT/bcrypt) and rate limiting
+│       ├── db/                     # PostgreSQL (SQLAlchemy) and Redis connections
+│       ├── dependencies/           # Research pipeline, LLM agents, tools, user auth
+│       ├── models/                 # SQLAlchemy ORM models (User, Credit, Payment, Subscription, CreditTransaction, ReportAnalysis)
+│       ├── payment/                # Razorpay client and utility helpers
+│       └── schema/                 # Pydantic request/response schemas
 ├── frontend/
 │   ├── package.json
+│   ├── vite.config.js
 │   └── src/
-│       ├── api/          # Frontend API integration
-│       ├── Components/   # Shared UI
-│       └── Pages/        # Application pages
-├── screenshots/          # Instructions for adding real captures
+│       ├── api.js                  # Frontend API integration
+│       ├── Components/             # Shared UI (Navbar, Sidebar, ReportView, ChatBot, FormatForm, FloatingAlert)
+│       └── Pages/                  # Application views (HomePage, ResultPage, ReportHistory, Payment, About, Auth)
+├── screenshots/                    # Instructions for adding real captures
 ├── PROJECT_REPORT.md
 └── PUBLIC_PROJECT_DOCUMENTATION.md
 ```
@@ -136,7 +158,7 @@ This is a high-level product view, not a complete internal design specification.
 
 - Python 3.11 or newer.
 - Node.js and npm compatible with the versions required by the frontend lockfile.
-- API credentials for the external services used by the flows you want to run.
+- API credentials for the external services used by the flows you want to run (Google Gemini, Firecrawl, Upstash Redis, Razorpay).
 
 ### 1. Clone the repository
 
@@ -168,10 +190,11 @@ Set-Location frontend
 npm ci
 ```
 
-Create `frontend\.env.local` with:
+Create `frontend\.env` (or `frontend\.env.local`) with:
 
 ```dotenv
 VITE_BASE_URL=http://127.0.0.1:8000
+VITE_RAZORPAY_KEY_ID=your_razorpay_key_id
 ```
 
 Then start the development server:
@@ -184,49 +207,72 @@ Open the URL printed by Vite (typically `http://localhost:5173`). The backend pe
 
 ## Environment configuration
 
-There is no checked-in `.env.example`. Create a local `backend\.env` file and supply credentials for the integrations you use:
+Create a local `backend\.env` file and supply credentials for the integrations you use:
 
 ```dotenv
+# Database and Security
+DATABASE_URL=postgresql+psycopg://username:password@localhost:5432/ResearchAgentDb
+JWT_SECRET_KEY=replace_with_a_long_random_secret
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# External AI and Research Providers
 GOOGLE_API_KEY=your_google_api_key
 FIRECRAWL_API_KEY=your_firecrawl_api_key
-DATABASE_URL=your_database_connection_url
-JWT_SECRET_KEY=replace_with_a_long_random_secret
+GROQ_API_KEY=your_groq_api_key
+
+# Redis Rate Limiting
 UPSTASH_REDIS_REST_URL=your_upstash_redis_url
 UPSTASH_REDIS_REST_TOKEN=your_upstash_redis_token
 
-# Optional frontend origins for deployments; not needed for the default local setup.
+# Razorpay Payments
+RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
+
+# Optional frontend origins for deployments
 FRONTEND_URL=
 FRONTEND_URL_2=
 ```
 
-`GROQ_API_KEY` is referenced by the repository's configured Groq client, but an active user-facing flow using that client was not verified. Do not add real credentials to source control. The frontend's `VITE_BASE_URL` belongs in `frontend\.env.local` as shown above.
-Account registration/login requires a configured database and `JWT_SECRET_KEY`. Selected rate limits require Upstash Redis credentials. The repository currently has no database migration or table-creation command, so the configured database schema must be provisioned separately.
+Account registration/login requires a configured database and `JWT_SECRET_KEY`. Selected rate limits require Upstash Redis credentials. Razorpay orders and signature verification require `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET`.
 
 ## Using the application
 
 1. Start the backend and frontend using the setup steps.
 2. Open the Vite development URL in a browser.
-3. Enter a research topic and submit it.
-4. Review the report, progress/result content, critique, and source links.
-5. Ask a follow-up question or request an edit from the assistant.
-6. Review suggested edits before choosing whether to apply them; verify report claims against the cited material.
+3. Register an account or sign in (new accounts receive 50 credits).
+4. Enter a research topic, optionally customize the format instructions, and submit it.
+5. Review the report, streamed progress updates, critique, and source links.
+6. On mobile screens, use the segmented tab bar (`📄 Report` / `💬 AI Assistant`) to switch views conveniently.
+7. Ask follow-up questions or switch to Edit Assistant to instruct changes to the draft.
+8. Click on your credit balance in the navigation bar to review plans or purchase top-ups / subscriptions via Razorpay.
 
 ## API overview
 
-These are the application routes mounted under `/api/v1`. Account and sign-in routes are listed alongside research features; protected routes require a valid account token.
+### V1 Application Routes (`/api/v1`)
 
 | Method | Endpoint | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/auth/register` | Register an account, initialize its 50-credit balance, and return a JWT and account details. |
 | `POST` | `/api/v1/auth/login` | Authenticate an account and return a JWT, account details, and current credit balance. |
 | `POST` | `/api/v1/auth/logout` | Clear the auth cookie; clients must also remove any locally stored bearer token. |
-| `GET` | `/api/v1/users/getUser` | Return the authenticated user's account details and current credit balance. |
+| `GET` | `/api/v1/users/getUser` | Return the authenticated user's account details and credit balance; evaluates plan resets. |
+| `DELETE` | `/api/v1/users/account` | Placeholder only; currently returns the authenticated user ID and does not delete the account. |
+| `POST` | `/api/v1/research/` | Reserve 20 credits and start authenticated topic research; stream progress, result, or error using SSE. Failed runs refund the charge. Limited to 1 request per account per hour. |
 | `GET` | `/api/v1/research/history` | Return the authenticated user's saved reports, including report content and critique, newest first. |
 | `GET` | `/api/v1/research/history/{report_id}` | Return one saved report with its sources; only the owning user can access it. |
-| `DELETE` | `/api/v1/users/account` | Placeholder only; currently returns the authenticated user ID and does not delete the account. |
-| `POST` | `/api/v1/research/` | Reserve 20 credits and start authenticated topic research; stream progress, result (including `credits_balance`), or error using Server-Sent Events. Failed runs refund the charge. Limited to one request per account per hour. |
-| `POST` | `/api/v1/chatagent/` | Ask an authenticated report-focused follow-up question; returns a JSON answer. This route is excluded from the generated OpenAPI schema. |
-| `POST` | `/api/v1/chatagent/editchat` | Request an authenticated report edit and receive a proposed change for user review. |
+| `POST` | `/api/v1/chatagent/` | Ask an authenticated report-focused follow-up question (costs 1 credit); returns a JSON answer. |
+| `POST` | `/api/v1/chatagent/editchat` | Request an authenticated report edit (costs 2 credits) and receive a proposed patch for review. |
+| `POST` | `/api/v1/creditTransaction/credit` | Allocate purchased credits and record transaction history following payment verification. |
+
+### Payment Routes (`/api/payment`)
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `POST` | `/api/payment/create-order` | Create a Razorpay order for a selected plan (`topup`, `monthly`, `yearly`) and record a pending payment. |
+| `POST` | `/api/payment/transaction/verify` | Authenticated HMAC-SHA256 signature verification and order ownership confirmation. |
+| `POST` | `/api/payment/verify-payment` | Direct signature validation utility. |
 
 Request schemas and implementation details are documented in [PROJECT_REPORT.md](./PROJECT_REPORT.md).
 
@@ -234,11 +280,10 @@ Request schemas and implementation details are documented in [PROJECT_REPORT.md]
 
 - **Human review is part of the workflow:** source links are available for inspection, and assistant-proposed changes are reviewable before use.
 - **Progressive feedback:** the research request provides streamed progress/results rather than requiring users to wait without status.
-- **Typed service boundary:** FastAPI and Pydantic are used for HTTP routing and request validation.
-- **Persisted research:** report content, critique, sources, and timestamps are stored with the owning account; chat conversations are not persisted.
-- **Credit balance:** account credit balances are stored with account data. The Home page loads the initial value from `/api/v1/users/getUser` and updates it from the research result event.
+- **Typed service boundary:** FastAPI and Pydantic (`pydantic-settings`) are used for HTTP routing, request validation, and environment configuration.
+- **Persisted research & billing:** report content, critique, sources, payments, subscriptions, and credit ledger records are stored with the owning account; chat conversations are not persisted.
+- **Credit balance:** account credit balances are tracked in PostgreSQL with separate timestamps for daily (`last_daily_reset_at`) and monthly (`last_monthly_reset_at`) allowances.
 - **Authentication and limits:** authenticated routes resolve the user from a JWT supplied in a bearer header or cookie; selected routes use Redis-backed IP/account limits.
-- **Security scope:** the app has no roles or shared-report access controls. The current auth cookie is configured with `secure=False`, and account deletion is not implemented; further security work is needed before public production use.
 
 ## Validation, limitations, and roadmap
 
@@ -251,18 +296,18 @@ Frontend build and lint checks and backend Python compilation were run during de
 - Generated research and answers may be incomplete or incorrect; users must validate sources and claims.
 - No persistent chat history, role-based access, or implemented account deletion.
 - External integrations require valid configuration and network access.
-- The repository does not specify a project license.
+- Payment flow currently combines client verification with credit fulfillment; production deployment requires automated webhook handlers (`order.paid`).
+- The repository does not specify an open-source license.
 - No genuine product screenshots or measured performance results are currently included.
 
 ### Potential next steps
 
 - Add automated unit, API, and browser-level tests.
+- Implement server-to-server Razorpay webhooks (`POST /api/payment/webhook`) with signature verification.
 - Harden authentication and rate limiting, and add operational safeguards before public deployment.
 - Add report/chat persistence only with a defined ownership, privacy, and retention policy.
 - Add evaluation procedures for source quality and report reliability.
 - Capture and maintain genuine screenshots and document supported deployment configurations.
-
-These are possible improvements, not features currently claimed as implemented.
 
 ## Documentation
 
