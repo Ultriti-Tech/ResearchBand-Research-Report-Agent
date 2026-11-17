@@ -20,7 +20,6 @@ from datetime import datetime, timezone
 
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
-from src.dependencies.agents import gemini_model
 from src.schema.SchemaModel import ResearchReq, ReportHistoryResponse
 
 

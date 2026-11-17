@@ -19,13 +19,14 @@ from sqlalchemy import select
 
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
-from src.dependencies.agents import gemini_model
 from src.schema.SchemaModel import ReportChatReq
 from src.schema.ChatAgent import EditRequest
 from src.dependencies.tools import generate_patch
 from src.dependencies.patcher import apply_patch
 from src.dependencies.agents import chatAgent
 
+
+from src.dependencies.llm_model import llm_model
 
 from src.db.database import get_db
 from src.models.chat_messages import ChatMessage
@@ -88,7 +89,7 @@ def chat_about_report(
         )
         for message in req.messages
     ]
-    response = gemini_model.invoke(
+    response = llm_model.invoke(
         [
             SystemMessage(
                 content=(

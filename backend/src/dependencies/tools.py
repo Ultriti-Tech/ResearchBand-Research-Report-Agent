@@ -20,6 +20,8 @@ from src.schema.SchemaModel import NewsArticle, NewsSearchResult
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from src.dependencies.llm_model import llm_model
+
 # load clients
 
 # fire crawl news fetching
@@ -215,17 +217,13 @@ Requested change:
     ]
 )
 
+
 def generate_patch(code: str, instruction: str, file_name: str) -> Patch:
     """funtion is used to generate patch for particular portion of code"""
 
     print("whole data is been sent :", code)
     print("generating patch .....")
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3.5-flash-lite",
-        temperature=0,
-        # max_retries=2,
-    )
-    editor_chain = patch_prompt | llm.with_structured_output(Patch)
+    editor_chain = patch_prompt | llm_model.with_structured_output(Patch)
 
     return editor_chain.invoke(
         {

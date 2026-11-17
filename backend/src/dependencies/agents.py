@@ -13,20 +13,23 @@ from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 
+# -------------- load llm model
+from src.dependencies.llm_model import llm_model
+
 import os
 
 from .tools import web_search, web_page_scrapping
 
 # models
-gemini_model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", temperature=0)
-groq_model = ChatGroq(model="openai/gpt-oss-20b", temperature=0)
+# gemini_model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite", temperature=0)
+# groq_model = ChatGroq(model="openai/gpt-oss-20b", temperature=0)
 
 
 # --------------------------
 # 1st agent - web search
 def build_search_agent():
     return create_agent(
-        model=gemini_model,
+        model=llm_model,
         tools=[web_search],
     )
 
@@ -34,7 +37,7 @@ def build_search_agent():
 # -----------------------------
 # 2nd agent - web scrapping and info scrappin
 def build_reader_agent():
-    return create_agent(model=gemini_model, tools=[web_page_scrapping])
+    return create_agent(model=llm_model, tools=[web_page_scrapping])
 
 
 # ----------------------------------
@@ -68,7 +71,7 @@ writer_prompt = ChatPromptTemplate.from_messages(
 )
 
 # writer chain ------------------
-writer_chain = writer_prompt | gemini_model | StrOutputParser()
+writer_chain = writer_prompt | llm_model | StrOutputParser()
 
 
 # --------------------------------
@@ -107,7 +110,7 @@ critics_prompt = ChatPromptTemplate.from_messages(
 )
 
 # critic chain ---------------------
-critics_chain = critics_prompt | gemini_model | StrOutputParser()
+critics_chain = critics_prompt | llm_model | StrOutputParser()
 
 
 # ----------------------------
@@ -121,7 +124,7 @@ def chatAgent(req):
         )
         for message in req.messages
     ]
-    response = gemini_model.invoke(
+    response = llm_model.invoke(
         [
             SystemMessage(
                 content=(

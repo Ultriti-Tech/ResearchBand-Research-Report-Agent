@@ -13,13 +13,30 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [pendingEdit, setPendingEdit] = useState(null);
+
+  const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const [isCodeFix, setisCodeFix] = useState(false);
 
+  // Reliable scroll-to-bottom helper
+  const scrollToBottom = (smooth = true) => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: smooth ? "smooth" : "auto",
+      });
+    } else if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+    scrollToBottom(true);
+    // Double trigger to ensure diff DOM layout calculation has settled
+    const timer = setTimeout(() => scrollToBottom(false), 100);
+    return () => clearTimeout(timer);
+  }, [messages, sending, pendingEdit]);
 
   const sendMessage = async (text = input) => {
     const question = text.trim();
@@ -35,6 +52,7 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
       if (isCodeFix) {
         const proposal = await suggestReportEdit(question, report);
         if (proposal?.credits && setCredits) setCredits(proposal.credits);
+
         if (!proposal.success || !proposal.changes?.length) {
           setMessages([
             ...nextMessages,
@@ -146,6 +164,7 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
 
       {/* Messages area */}
       <div
+        ref={messagesContainerRef}
         className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto p-3 sm:p-4 text-xs sm:text-sm"
         aria-live="polite"
       >
@@ -222,43 +241,67 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
               </div>
             ))}
 
-            {/* Pending Edit Proposal Diff */}
+            {/* Pending Edit Proposal Diff Card in chat flow */}
             {pendingEdit && (
               <section
-                className="my-2 flex flex-col overflow-hidden rounded-xl border border-[var(--accent)]/50 bg-[var(--bg-surface)] shadow-lg"
+                className="my-2.5 flex shrink-0 flex-col overflow-hidden rounded-xl border border-[var(--accent)] bg-[var(--bg-surface)] shadow-xl animate-fade-in"
                 aria-label="Suggested report changes"
               >
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-3 py-2 bg-[var(--bg-raised)]">
-                  <div>
-                    <p className="text-xs font-semibold text-[var(--text-primary)]">
-                      Suggested changes
-                    </p>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">
-                      {pendingEdit.changes.length}{" "}
-                      {pendingEdit.changes.length === 1 ? "edit" : "edits"} · Review before applying
-                    </p>
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] px-3 py-2.5 bg-[var(--bg-raised)]">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded bg-amber-500/20 text-amber-300 text-xs font-bold">
+                      ✎
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold text-[var(--text-primary)]">
+                        Suggested Changes
+                      </p>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">
+                        {pendingEdit.changes?.length || 1}{" "}
+                        {pendingEdit.changes?.length === 1 ? "modification" : "modifications"} · Review before applying
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={rejectEdit}
+                      className="rounded-lg border border-[var(--border-default)] px-2.5 py-1 text-xs font-medium text-[var(--text-secondary)] transition hover:text-white hover:bg-zinc-800"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={acceptEdit}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white shadow transition hover:bg-[var(--accent-hover)]"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                        <path d="m3.5 8.25 3 3 6-6.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      Accept
+                    </button>
                   </div>
                 </div>
 
-                <div className="max-h-56 overflow-y-auto p-2.5 space-y-2">
-                  {pendingEdit.changes.map((change, changeIndex) => (
+                <div className="max-h-64 overflow-y-auto p-2.5 space-y-2.5">
+                  {pendingEdit.changes?.map((change, changeIndex) => (
                     <article
-                      key={`${changeIndex}-${change.old_text}`}
-                      className="overflow-hidden rounded-lg border border-[var(--border-subtle)]"
+                      key={`${changeIndex}-${change.old_text || changeIndex}`}
+                      className="overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-raised)]/50"
                     >
                       {change.reason && (
-                        <p className="border-b border-[var(--border-subtle)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)]">
-                          {change.reason}
-                        </p>
+                        <div className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)] font-medium">
+                          💡 {change.reason}
+                        </div>
                       )}
-                      <div className="divide-y divide-[var(--border-subtle)] font-mono text-[10px] sm:text-[11px] leading-5 overflow-x-auto">
+                      <div className="divide-y divide-[var(--border-subtle)] font-mono text-[11px] leading-relaxed overflow-x-auto">
                         {change.old_text &&
                           change.old_text.split("\n").map((line, lineIndex) => (
                             <pre
                               key={`removed-${lineIndex}`}
-                              className="whitespace-pre-wrap break-all bg-[var(--danger-muted)] px-2.5 py-1 text-[var(--danger)]"
+                              className="whitespace-pre-wrap break-all bg-[var(--danger-muted)] px-2.5 py-1 text-[var(--danger)] m-0"
                             >
-                              <span className="mr-1.5 select-none font-bold">−</span>
+                              <span className="mr-1.5 select-none font-bold text-red-400">−</span>
                               {line || " "}
                             </pre>
                           ))}
@@ -266,35 +309,15 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                           change.new_text.split("\n").map((line, lineIndex) => (
                             <pre
                               key={`added-${lineIndex}`}
-                              className="whitespace-pre-wrap break-all bg-[var(--success-muted)] px-2.5 py-1 text-[var(--success)]"
+                              className="whitespace-pre-wrap break-all bg-[var(--success-muted)] px-2.5 py-1 text-[var(--success)] m-0"
                             >
-                              <span className="mr-1.5 select-none font-bold">+</span>
+                              <span className="mr-1.5 select-none font-bold text-emerald-400">+</span>
                               {line || " "}
                             </pre>
                           ))}
                       </div>
                     </article>
                   ))}
-                </div>
-
-                <div className="flex shrink-0 justify-end gap-2 border-t border-[var(--border-subtle)] bg-[var(--bg-raised)] p-2.5">
-                  <button
-                    type="button"
-                    onClick={rejectEdit}
-                    className="rounded-lg border border-[var(--border-default)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:text-white"
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    onClick={acceptEdit}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3.5 py-1.5 text-xs font-semibold text-white shadow transition hover:bg-[var(--accent-hover)]"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                      <path d="m3.5 8.25 3 3 6-6.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                    Accept
-                  </button>
                 </div>
               </section>
             )}
@@ -310,7 +333,7 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
         )}
       </div>
 
-      {/* Input Form */}
+      {/* Input Form with Action Bar */}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -325,6 +348,46 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
           >
             {error}
           </p>
+        )}
+
+        {/* Sticky Pending Changes Bar (ALWAYS visible right above input when edits are pending) */}
+        {pendingEdit && (
+          <div className="mb-2.5 rounded-xl border border-amber-500/50 bg-amber-500/10 p-2.5 shadow-sm animate-fade-in">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/20 text-amber-300 text-xs font-bold">
+                  ✓
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-amber-200 truncate">
+                    Review Pending Edits ({pendingEdit.changes?.length || 1})
+                  </p>
+                  <p className="text-[10px] text-zinc-400 truncate">
+                    Choose to apply or discard changes
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={rejectEdit}
+                  className="rounded-lg border border-zinc-700 bg-zinc-800/90 px-2.5 py-1 text-xs font-medium text-zinc-300 hover:bg-zinc-700 hover:text-white transition active:scale-95"
+                >
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={acceptEdit}
+                  className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--accent-hover)] transition shadow active:scale-95"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="m3.5 8.25 3 3 6-6.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  <span>Accept</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="mb-2 flex items-center justify-between">
@@ -356,7 +419,7 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
               !report
                 ? "Generate a report to start"
                 : pendingEdit
-                ? "Review pending edits above"
+                ? "Review pending edits above or use Accept/Reject"
                 : isCodeFix
                 ? "Instruct changes to the report…"
                 : "Ask about this report…"
