@@ -1,3 +1,5 @@
+import axios from "axios";
+
 const BASE = import.meta.env.VITE_BASE_URL;
 const getToken = () => localStorage.getItem("RHD_v1_dashed_t");
 
@@ -8,7 +10,7 @@ export async function getUser() {
     const res = await fetch(`${BASE}/api/v1/users/getUser`, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${getToken()}`,
+        Authorization: `Bearer ${getToken()}`,
         "Content-Type": "application/json",
       },
     });
@@ -153,7 +155,6 @@ export async function runResearch(
     const decoder = new TextDecoder();
     let buffer = "";
 
-
     while (true) {
       const { done, value } = await reader.read();
 
@@ -179,7 +180,7 @@ export async function runResearch(
       }
     }
 
-    return res
+    return res;
   } catch (error) {
     console.error("Research fetch failed:", error);
     throw error;
@@ -187,7 +188,7 @@ export async function runResearch(
 }
 
 // ------------------------------------
-// Report Editing Agent 
+// Report Editing Agent
 export async function suggestReportEdit(instruction, report) {
   const res = await fetch(`${BASE}/api/v1/chatagent/editchat`, {
     method: "POST",
@@ -219,7 +220,7 @@ export async function suggestReportEdit(instruction, report) {
 }
 
 // -------------------------------------
-// Report Info Agent 
+// Report Info Agent
 export async function suggestReportInfo(topic, report, messages = []) {
   const payload = {
     topic,
@@ -251,4 +252,35 @@ export async function suggestReportInfo(topic, report, messages = []) {
     throw new Error("The report chat response did not include an answer.");
   }
   return answer;
+}
+
+// -------------------------------
+// report content update
+export async function updateReportInformation(topic, report) {
+  console.log('update report ----------')
+  try {
+    const res = await axios.put(
+      "http://localhost:8000/api/v1/research/report/ba83cbb2-2d42-4ddb-b236-6288d8caaf36",
+      {
+        topic: topic,
+        report: report,
+      },
+      {
+        withCredentials: true,
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if(res?.status == 200){
+      console.log('res', res)
+    }
+
+    return res
+  } catch (error) {
+    console.log('error', error)
+    console.log('error', error?.response?.message)
+  }
 }

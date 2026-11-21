@@ -1,5 +1,8 @@
 # ResearchMind Backend Service
 
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& "e:\python\Generative AI\.venv\Scripts\Activate.ps1")         
+
+
 FastAPI service coordinating web research, LLM draft synthesis, report critique, and Razorpay billing.
 
 ## Local Development

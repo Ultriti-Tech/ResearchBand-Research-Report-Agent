@@ -10,7 +10,9 @@ class ResearchReq(BaseModel):
     topic: str
     reportFormat:str
     
-
+class UpdateReq(BaseModel):
+    topic: str
+    report: str
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]

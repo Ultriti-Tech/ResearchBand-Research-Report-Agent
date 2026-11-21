@@ -12,7 +12,7 @@
 | Prepared by | Ultriti-Tech (organization named as backend package author) |
 | Institution / organization | Ultriti-Tech; no separate academic institution is specified in the repository |
 | Project version | Backend package `0.1.0`; frontend package `0.0.0`; no shared product release version is defined |
-| Report date | 2026-11-06 |
+| Report date | 2026-11-17 |
 
 > **Scope note:** This report documents the implementation present in the repository as inspected for this report. It distinguishes implemented behavior from limitations and future work. Credentials and secret values are deliberately excluded.
 
@@ -41,9 +41,9 @@
 
 ## 2. Abstract / Executive Summary
 
-ResearchMind is a browser-based AI research assistant. A user enters a topic and the application returns a structured Markdown report, source links, and a separate critique. The user can then inspect the report and review, ask questions grounded in the report, make direct edits, or request suggested edits that can be accepted or rejected before the report changes.
+ResearchMind is a browser-based AI research assistant and document synthesizer. A user enters a topic and the application returns a structured Markdown report, source links, and a separate critique. The user can then inspect the report and review, ask questions grounded in the report, make direct edits, or request suggested edits that can be accepted or rejected before the report changes.
 
-The frontend is a React application. A Python FastAPI service coordinates research and model-provider operations. The active research workflow uses Firecrawl for news search, a webpage extraction tool, and Google Gemini through LangChain. Pipeline progress is streamed to the browser as Server-Sent Events (SSE). Completed reports, critiques, and sources are saved per user; conversations are not persisted.
+The frontend is a responsive React application built with Vite, Tailwind CSS, and Lucide icons, featuring a full desktop multi-panel workspace, a mobile-segmented view switcher (`📄 Report` vs `💬 AI Assistant`), mobile navigation drawer, and an in-context diff review system. A Python FastAPI service coordinates research, payment processing, credit accounting, and model-provider operations. The active research workflow uses Firecrawl for news search, a webpage extraction tool, and Google Gemini through LangChain. Pipeline progress is streamed to the browser as Server-Sent Events (SSE). Monetization and usage quotas are powered by Razorpay payment gateway integration, supporting recurring monthly/yearly subscriptions and pay-as-you-go credit top-ups tracked through an atomic credit transaction ledger with split daily/monthly reset schedules. Completed reports, critiques, sources, and financial transactions are persisted per user in PostgreSQL via SQLAlchemy.
 
 The project addresses the effort involved in collecting and organizing initial research material. Its expected benefit is a faster first draft and a convenient human-review workflow; the repository contains no user study or measured productivity impact. Generated reports are not guaranteed to be complete or accurate and should be checked against their linked sources. The current implementation is a working prototype, not a fully tested production service.
 
@@ -79,23 +79,30 @@ The project targets the time and context switching involved in turning an open-e
 
 ### 3.6 Scope
 
-The implemented scope includes the research workflow and a basic account workflow:
+The implemented scope includes the research workflow, account and credit management, payment gateway integration, and a mobile-responsive interface:
 
-- Home and About pages.
+- Home and About pages with fully responsive layout.
+- Mobile collapsible navigation drawer (<768px) and segmented mobile workspace switcher (`📄 Report` vs `💬 AI Assistant` on <900px).
 - Topic entry and suggested topic buttons.
 - Four visible progress stages: search, reading, writing, and critique.
 - A Markdown report with an appended source list.
 - A separate review/feedback view.
 - Report copy, download, and direct edit actions.
-- Report-focused assistant chat.
-- AI-suggested report edits with accept/reject controls.
+- Report-focused assistant chat with quick-prompt suggestions.
+- AI-suggested report edits with unified diff preview, flexbox shrink-protection, and sticky accept/reject controls.
 - Account registration/login, JWT-based authentication, and authenticated profile lookup.
+- Integrated Razorpay payment gateway supporting order creation, client-side checkout modal, and HMAC-SHA256 signature verification.
+- Tiered credit and subscription system: Free plan (50 credits/daily reset), Top-up (50 credits for ₹50), Monthly subscription (600 credits for ₹499), and Yearly subscription (800 credits/mo for ₹4,999).
+- Dual-cadence credit quota system separating `last_daily_reset_at` from `last_monthly_reset_at` to prevent monthly rollover loss.
+- Atomic reservation, deduction, and refund mechanisms for credits during research pipelines.
+- Credit transaction audit ledger and payment verification history.
 - Selected IP- and account-based rate limits backed by Redis.
 
 ### 3.7 Limitations
 
-- User accounts and generated reports are stored in the configured SQL database; reports are associated with their owning user. Chat conversations are not durably stored; account deletion is currently a placeholder.
-- The repository does not include a database migration or table-creation command.
+- User accounts, credit ledgers, payment transactions, subscriptions, and generated reports are stored in the configured SQL database; active chat conversations are held in client state and not persisted.
+- Webhook signature verification and asynchronous retry handlers for dropped frontend callbacks are slated for future hardening.
+- Account deletion is currently a placeholder endpoint.
 - Research, chat, and edit features depend on configured external services and network availability.
 - Search results and page text are deliberately bounded in the current implementation.
 - Source relevance and report factuality are not measured by an evaluation suite.
@@ -152,6 +159,11 @@ Environment variable **names** referenced in source/configuration include `FIREC
 8. Edit report text directly, copy it, or download it as Markdown.
 9. Navigate between the Home and About pages.
 10. Register or log in and use authenticated API routes.
+11. View current credit balance, plan tiers (Free, Top-up, Monthly, Yearly), and usage limits.
+12. Purchase credits or subscriptions via integrated Razorpay checkout.
+13. Execute research jobs with atomic 20-credit deduction, reservation, and automated refund on pipeline failure.
+14. Switch between Report and AI Assistant views seamlessly on mobile viewports (<900px).
+15. Inspect side-by-side diff comparisons of proposed edits with flexbox shrink-protection and sticky accept/reject controls.
 
 ### 5.4 Non-functional requirements and implementation evidence
 
@@ -173,19 +185,21 @@ Environment variable **names** referenced in source/configuration include `FIREC
 | Frontend | React 19, JavaScript/JSX | Build interactive browser UI |
 | Frontend tooling | Vite 8 | Development server and production bundling |
 | Routing | React Router 7 | Home and About navigation |
-| Styling | Tailwind CSS 4, custom CSS | Utility styling, theme tokens, responsive workspace layout |
+| Styling | Tailwind CSS 4, custom CSS, Lucide React icons | Utility styling, theme tokens, responsive mobile drawer, layout toggles |
 | Markdown UI | `react-markdown`, `remark-gfm`, `@tailwindcss/typography` | Render reports, feedback, and chat Markdown |
-| Backend | Python 3.11+, FastAPI | HTTP application and request handling |
+| Payment Integration | Razorpay Checkout SDK (`checkout.js`) | Client-side payment modal triggering and signature capture |
+| Backend | Python 3.11+, FastAPI | HTTP application, payment handling, and research orchestration |
 | ASGI server | Uvicorn | Backend development/runtime server |
-| Data validation | Pydantic | Request models and edit input validation |
+| Payment Gateway SDK | `razorpay` Python SDK | Server-side Razorpay order creation and HMAC-SHA256 signature verification |
+| Data validation | Pydantic, `pydantic-settings` | Request/response schemas, typed environment settings, edit input validation |
 | AI orchestration | LangChain, LangChain Core, LangGraph package | Model wrappers, prompts, tools, agents, and output parsing; no direct LangGraph graph is constructed in the inspected flow |
 | AI/ML provider | Google Gemini via `langchain-google-genai` | Active research writing, critique, report Q&A, and edit proposals |
 | Additional AI integration | Groq via `langchain-groq` | Client configured in source, unused by active request paths |
 | Research search | Firecrawl Python SDK | Search news results for a topic |
 | Page extraction | Requests, Beautiful Soup 4, lxml | Fetch HTML and extract readable text |
-| Configuration | `python-dotenv` | Load environment variables from `.env` files |
+| Configuration | `python-dotenv`, `pydantic-settings` | Load typed environment variables from `.env` files |
 | API communication | JSON over HTTP; Server-Sent Events | Frontend/service communication and streaming research progress |
-| Database | SQLAlchemy, configured SQL database, psycopg driver | Persists user accounts and report records; chat conversations are not persisted |
+| Database | PostgreSQL, SQLAlchemy, psycopg driver | Persists users, credits, payments, subscriptions, credit transactions, and report records |
 | Rate limiting | Upstash Redis | Supports selected IP- and account-based request limits |
 | Deployment | No complete deployment platform/configuration declared | A Netlify origin appears in CORS configuration, but this alone does not establish a deployed service |
 | Development tools | npm, ESLint, Vite, Python `compileall`, `uv_build` declaration | Frontend scripts, linting, build, Python package build metadata/syntax checks |
@@ -336,45 +350,98 @@ Environment variable **names** referenced in source/configuration include `FIREC
 
 `react-markdown` renders Markdown content in the report and chat. `remark-gfm` enables GitHub-Flavored Markdown features. `@tailwindcss/typography` supplies prose styling. These packages affect content presentation, not fact checking or report generation.
 
-### 7.13 Account database and report storage
+### 7.13 Relational Database Architecture
 
-SQLAlchemy and a configured SQL database store user account records, credit balances, and generated report records (including critique and sources). The repository has no database migration or table-creation command. Chat conversations are not durably stored by the application.
+SQLAlchemy and PostgreSQL store user account records, credit balances, payment transaction logs, subscriptions, credit audit entries, and generated research reports. Six models define the database structure: `User`, `Credit`, `Payment`, `Subscription`, `CreditTransaction`, and `ReportAnalysis`. Chat conversations remain in-memory in the client.
+
+### 7.14 Razorpay Payment Gateway & Checkout
+
+**What it is:** Razorpay is a payment gateway provider offering order creation APIs, JavaScript modal checkout, and cryptographic webhook/verification mechanisms.
+
+**How it is used:** The backend exposes `POST /api/payment/create-order` using `razorpay.Client(auth=(KEY_ID, KEY_SECRET))` to create server-side orders denominated in paise (INR). The frontend initiates the Razorpay popup using `https://checkout.razorpay.com/v1/checkout.js`. Upon completion, payment details (`razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature`) are posted to `POST /api/payment/transaction/verify` for server-side HMAC-SHA256 signature verification.
+
+**Responsibilities:** Prevent frontend-manipulated order pricing, guarantee cryptographic payment authenticity, record captured payment records, and trigger credit/subscription provisioning.
+
+**Advantages:** Broad payment instrument support (UPI, Cards, NetBanking), reliable client checkout SDK, and cryptographic signature verification.
+
+**Limitations:** Webhook ingestion must be idempotent and handle retries/network drops when client callbacks are interrupted.
+
+### 7.15 Dual-Cadence Credit Engine & Audit Ledger
+
+**What it is:** An atomic ledger and quota reset architecture that governs feature usage, reservations, and plan renewals.
+
+**How it is used:**
+1. **Quota separation:** The `credits` table separates `last_daily_reset_at` from `last_monthly_reset_at` in the Asia/Kolkata (IST) timezone. Free tier accounts refresh to 50 daily credits upon new calendar days. Paid subscriptions (Monthly 600cr/mo, Yearly 800cr/mo) renew their monthly quota upon month/year roll without erasing purchased top-up credits.
+2. **Transactional safety:** Each research request atomically reserves 20 credits via `reserve_credits()`. If the pipeline succeeds, `deduct_reserved_credits()` finalizes the charge; if the pipeline fails, `refund_reserved_credits()` restores the balance.
+3. **Audit trail:** All credit grants and payments write structured records into `credit_transactions` and `payments` tables with balance snapshots and order references.
 
 ## 8. System Architecture
 
 ### 8.1 Overall architecture
 
-The application has a React/Vite frontend and a Python/FastAPI service. The frontend sends account, research, report-history, report-chat, and edit requests to the service. The service uses a configured SQL database for account, credit, and report records, Upstash Redis for selected rate limits, and Firecrawl and hosted language-model integrations for its active AI-assisted features. Research progress is streamed to the frontend. The browser holds the active report and conversation state; saved reports can be loaded from the database, while chats are not persisted.
+The application consists of a responsive React/Vite frontend and a Python/FastAPI backend service. The frontend handles navigation, responsive layout toggles (mobile drawer and segmented view switcher), real-time research streaming, in-context diff reviews, and Razorpay checkout modals. The backend coordinates AI workflows (Firecrawl, Gemini via LangChain), manages billing and payments (Razorpay order creation, HMAC verification, subscriptions), executes atomic credit operations with split daily/monthly resets, and persists data across 6 PostgreSQL tables via SQLAlchemy. Upstash Redis provides IP- and account-based rate limiting.
 
 ### 8.2 Architecture diagram
 
 ```mermaid
-flowchart LR
-    U[User] --> FE[React frontend]
-    FE -->|JSON request| API[FastAPI service]
-    API -->|SSE status/result/error| FE
-    API --> PIPE[Research workflow]
-    PIPE --> FC[Firecrawl news search]
-    PIPE --> WEB[Public webpage]
-    WEB --> EXTRACT[Requests + Beautiful Soup + lxml]
-    PIPE --> GEM[Google Gemini via LangChain]
-    API --> GEM
-    API --> USERS[(SQL user records)]
-    API --> RL[(Redis rate limits)]
-    FE --> STATE[Browser component state]
-    GEM --> API
-    FC --> PIPE
-    EXTRACT --> PIPE
-    PIPE --> API
+flowchart TD
+    subgraph Frontend["React Frontend (Vite + Tailwind CSS)"]
+        UI[Workspace & Mobile Layout]
+        CHK[Razorpay Checkout Modal]
+        STATE[Local Report & Chat State]
+    end
+
+    subgraph Backend["FastAPI Backend Service"]
+        API[API Router /api/v1 & /api/payment]
+        PAY[Razorpay Payment & Verification Engine]
+        CRED[Credit & Subscription Quota Manager]
+        PIPE[Research Pipeline Worker]
+    end
+
+    subgraph Data["PostgreSQL & Redis Storage"]
+        DB[(PostgreSQL Database)]
+        subgraph Tables["Relational Models"]
+            T_USR[users]
+            T_CRD[credits]
+            T_PAY[payments]
+            T_SUB[subscriptions]
+            T_TXN[credit_transactions]
+            T_REP[report_analysis]
+        end
+        RL[(Upstash Redis Rate Limiting)]
+    end
+
+    subgraph Providers["External Cloud Services"]
+        RZP[Razorpay Payment Gateway API]
+        FC[Firecrawl News Search]
+        WEB[Public Web Content]
+        GEM[Google Gemini AI Engine]
+    end
+
+    UI -->|HTTP Requests| API
+    UI -->|Open Checkout| CHK
+    CHK -->|Payment Captured| UI
+    UI -->|Verify Signature| API
+    API --> PAY
+    PAY -->|Create Orders / Verify HMAC| RZP
+    PAY --> CRED
+    CRED --> DB
+    API --> PIPE
+    API --> RL
+    PIPE --> FC
+    PIPE --> WEB
+    PIPE --> GEM
+    PIPE -->|Save Report & Deduct Credits| DB
+    PIPE -->|SSE Events| UI
 ```
 
 ### 8.3 Frontend/backend communication
 
 - The frontend reads the backend base URL from `VITE_BASE_URL`.
-- JSON is sent for research, report chat, and edit requests.
+- JSON is sent for authentication, research initialization, report chat, edit proposals, Razorpay order creation, and payment verification.
 - The research route returns `text/event-stream` with `status`, `result`, or `error` events.
-- The chat and edit routes return JSON.
-- `main.py` configures CORS for `http://localhost:5173`, a static Netlify origin, and optional `FRONTEND_URL` and `FRONTEND_URL_2` environment values. Methods and headers are configured as wildcards.
+- The chat, edit, payment, and credit ledger routes return JSON.
+- `main.py` configures CORS for `http://localhost:5173`, Netlify production origins, and optional `FRONTEND_URL` and `FRONTEND_URL_2` environment values. Methods and headers are configured as wildcards.
 
 ### 8.4 AI and research processing
 
@@ -382,14 +449,15 @@ The active research process consists of a news search, a reader-agent invocation
 
 ### 8.5 Database interaction
 
-The backend uses SQLAlchemy to load and store user account, credit, and report records in the configured SQL database. Redis is used by the selected rate-limit dependencies. The active browser session contains conversation state; saved reports can be retrieved from the user's report history.
+The backend uses SQLAlchemy to load and store data in PostgreSQL across 6 relational tables: `users`, `credits`, `payments`, `subscriptions`, `credit_transactions`, and `report_analysis`. Foreign keys and cascade constraints link financial transactions and research reports to the user entity. Redis provides distributed counters for rate-limiting tiers.
 
 ### 8.6 External services
 
-- Firecrawl: news search.
-- Google Gemini: text generation, critique, report chat, and edit proposals.
-- Public web pages: retrieved by the extraction tool.
-- Groq: configured client only; unused in active flows.
+- **Razorpay:** Order creation, client-side checkout popup, HMAC-SHA256 signature verification, and subscription tracking.
+- **Firecrawl:** News discovery and search queries.
+- **Google Gemini:** Report generation, critique evaluation, interactive report Q&A, and structured code/report edit diff generation.
+- **Public web pages:** Retrieved by Requests + Beautiful Soup for deep reader-agent context.
+- **Groq:** Client configured for fallback expansion.
 
 ## 9. Module Description
 
@@ -410,6 +478,9 @@ The backend uses SQLAlchemy to load and store user account, credit, and report r
 | Research and edit tools | Search, extract, and generate patch suggestions | Normalizes Firecrawl news results; fetches and extracts webpage text; produces structured edit patch | Query/URL/code+instruction → results/text/patch | Firecrawl, Requests, Beautiful Soup, lxml, Gemini |
 | Patch application | Safely locate and apply proposed changes | Matches old text with whitespace flexibility and optional context; rejects absent/ambiguous/overlapping changes; applies replacements in reverse order | Original text + patch → updated text + unified diff | Python `re`, `difflib` |
 | Schemas | Validate request/result structures | Pydantic request models and TypedDict search result shapes | JSON/body values → validated objects | Pydantic, Python typing |
+| Razorpay order creation | Initialize server-side Razorpay payment orders | Maps requested plans to fixed server-side amounts (paise), creates Razorpay order, persists pending payment record | Plan request → `{order_id, amount, currency, key_id}` | `razorpay` SDK, FastAPI, SQLAlchemy |
+| Payment verification | Verify client checkout and credit allocation | Cryptographically verifies HMAC-SHA256 signature, marks payment captured, activates subscription/top-up, records ledger entry | Payment signature payload → verification status | `razorpay.utility`, HMAC, SQLAlchemy |
+| Credit ledger & reset helper | Manage quotas, atomic reservations, and audit logs | Manages dual resets (daily vs monthly), reserves/deducts/refunds pipeline credits, logs transaction history | User/credits → balance updates & audit log | SQLAlchemy, Python `zoneinfo` (IST) |
 
 ### 9.1 Frontend components
 
@@ -417,11 +488,15 @@ The backend uses SQLAlchemy to load and store user account, credit, and report r
 |---|---|
 | `frontend/src/main.jsx` | Creates the React root and renders the app in `StrictMode` |
 | `frontend/src/App.jsx` | Router, shared app shell, navigation, and route-specific workspace class |
-| `frontend/src/Components/Navbar.jsx` | ResearchMind brand link and Home/About navigation |
-| `frontend/src/Pages/HomePage/HomePage.jsx` | Topic form, pipeline run, status, error, and result handling |
-| `frontend/src/Components/Sidebar.jsx` | Four-step research progress display |
-| `frontend/src/Components/ReportView.jsx` | Report/review tabs, edit, copy, download, Markdown rendering |
-| `frontend/src/Components/ChatBot.jsx` | Report Q&A, edit assistant mode, proposed change review |
+| `frontend/src/Components/Navbar.jsx` | ResearchMind brand link, Home/About navigation, credit counter, and mobile hamburger drawer (<768px) |
+| `frontend/src/Pages/HomePage/HomePage.jsx` | Topic form, pipeline run, status, error, result handling, and mobile segmented switcher (`📄 Report` vs `💬 AI Assistant` on <900px) |
+| `frontend/src/Components/Sidebar.jsx` | Four-step research progress display with stage status badges |
+| `frontend/src/Components/ReportView.jsx` | Report/review tabs, direct editing, clipboard copy, Markdown Blob download |
+| `frontend/src/Components/ChatBot.jsx` | Report Q&A, edit assistant mode, flexbox shrink-safe diff proposals, and sticky action bar (`Review Pending Edits`) |
+| `frontend/src/Pages/Payment/Plans.jsx` | Pricing and subscription tiers modal (Free, Top-up, Monthly, Yearly) |
+| `frontend/src/Pages/Payment/BuyCredit.jsx` | Razorpay checkout bridge, dynamic SDK script loader, and payment verification dispatch |
+| `frontend/src/Pages/Payment/PaymentSuccess.jsx` | Post-payment confirmation receipt with transaction ID and updated balance |
+| `frontend/src/Pages/Payment/PaymentFailed.jsx` | Failure handling and retry routing for interrupted or declined checkouts |
 | `frontend/src/Pages/AboutPage/AboutPage.jsx` | Product purpose, objectives, audience, technology overview, limitations |
 | `frontend/src/api.js` | Research streaming, report Q&A, and edit calls |
 | `frontend/src/steps.js` | Four stage identifiers, titles, and descriptions |
@@ -431,16 +506,27 @@ The backend uses SQLAlchemy to load and store user account, credit, and report r
 
 | File | Responsibility |
 |---|---|
-| `backend/main.py` | FastAPI application and CORS setup |
-| `backend/src/api/v1/routes.py` | Combines user, auth, research, and chat-agent routers |
-| `backend/src/api/v1/Routes/Auth.py` | Account registration and login |
-| `backend/src/api/v1/Routes/User.py` | Authenticated account lookup; account deletion route is a placeholder |
-| `backend/src/api/v1/Routes/Research.py` | Research endpoint and SSE response |
+| `backend/main.py` | FastAPI application, CORS middleware, and route mounting (`/api/v1` and `/api/payment`) |
+| `backend/src/config/settings.py` | Typed environment variables via Pydantic (`RAZORPAY_KEY_ID`, `DATABASE_URL`, etc.) |
+| `backend/src/api/v1/routes.py` | Combines user, auth, research, chat-agent, and credit transaction routers |
+| `backend/src/api/v1/Routes/Auth.py` | Account registration, credential verification, and login |
+| `backend/src/api/v1/Routes/User.py` | Authenticated account and credit quota lookup |
+| `backend/src/api/v1/Routes/Research.py` | Research endpoint, credit reservation/deduction, and SSE response stream |
 | `backend/src/api/v1/Routes/ChatAgent.py` | Report Q&A and edit endpoints |
-| `backend/src/dependencies/user.py` | Resolves the current user from a JWT cookie or bearer token |
+| `backend/src/api/payment/Routes/Razorpay.py` | Razorpay order creation (`POST /api/payment/create-order`) |
+| `backend/src/api/payment/Routes/Trasaction.py` | Razorpay payment verification (`POST /api/payment/transaction/verify`) |
+| `backend/src/api/payment/Routes/creditTransaction.py` | Credit ledger query endpoint (`POST /api/v1/creditTransaction/credit`) |
+| `backend/src/payment/payment.py` | Razorpay client initialization and typed payment helpers |
+| `backend/src/dependencies/credit_restore_helper.py` | Dual-cadence credit resets (`reset_daily_credits`, `reset_monthly_credits`) in IST |
+| `backend/src/dependencies/user.py` | Resolves the current user from JWT cookie or bearer token |
 | `backend/src/core/rate_limiting.py` | IP- and account-based Redis rate-limit dependencies |
-| `backend/src/models/user.py` | SQLAlchemy account model |
-| `backend/src/db/` | SQL database session and Redis client setup |
+| `backend/src/models/user.py` | SQLAlchemy User account model |
+| `backend/src/models/credits.py` | SQLAlchemy Credit model with split daily and monthly reset timestamps |
+| `backend/src/models/payment.py` | SQLAlchemy Payment model for order and transaction records |
+| `backend/src/models/subscription.py` | SQLAlchemy Subscription model for recurring plans |
+| `backend/src/models/credit_transaction.py` | SQLAlchemy CreditTransaction ledger for audit tracking |
+| `backend/src/models/research.py` | SQLAlchemy ReportAnalysis model for saved research outputs |
+| `backend/src/db/` | PostgreSQL database session and Redis client setup |
 | `backend/src/dependencies/pipeline.py` | Sequential research processing and source formatting |
 | `backend/src/dependencies/agents.py` | Model clients, agents, and writer/critic chains |
 | `backend/src/dependencies/tools.py` | Firecrawl search, page extraction, AI patch generation |
@@ -529,17 +615,213 @@ sequenceDiagram
 
 Registration and login create a JWT associated with the user ID. The backend sets an HttpOnly cookie and returns the token in the response; the frontend also sends it in an `Authorization: Bearer` header. The shared `CurrentUser` dependency accepts either the cookie or bearer token, validates the JWT, loads the account, and rejects missing/invalid credentials with HTTP 401 or inactive accounts with HTTP 403. Research records are associated with their owner, and history queries filter by the authenticated user. CORS remains a browser-origin policy, not an identity mechanism.
 
+### 11.6 Payment & Subscription Lifecycle Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as React UI (Plans Modal)
+    participant API as FastAPI Backend
+    participant RZP as Razorpay Gateway
+    participant DB as PostgreSQL Database
+
+    User->>UI: Selects Plan (e.g., Monthly ₹499)
+    UI->>API: POST /api/payment/create-order {plan_name: "monthly"}
+    API->>API: Map plan to server-side amount (49900 paise)
+    API->>RZP: razorpay.order.create({amount, currency: "INR"})
+    RZP-->>API: {id: "order_xyz", status: "created"}
+    API->>DB: INSERT INTO payments (order_id, status: "created")
+    API-->>UI: {order_id: "order_xyz", amount: 49900, currency: "INR", key_id}
+    UI->>RZP: Open Razorpay Checkout Modal (checkout.js)
+    User->>RZP: Completes Payment (UPI / Card)
+    RZP-->>UI: {razorpay_order_id, razorpay_payment_id, razorpay_signature}
+    UI->>API: POST /api/payment/transaction/verify {order_id, payment_id, signature, plan_name}
+    API->>API: Cryptographically verify HMAC-SHA256 signature
+    API->>DB: UPDATE payments SET status = "captured"
+    API->>DB: UPDATE users SET purchased = "monthly"
+    API->>DB: UPDATE credits (balance += 600, last_monthly_reset_at = now)
+    API->>DB: INSERT INTO credit_transactions (amount: 600, type: "PURCHASE")
+    API->>DB: INSERT/UPDATE subscriptions (status: "active", period_end: now + 30d)
+    API-->>UI: {status: "success", message: "Plan activated"}
+    UI-->>User: Display PaymentSuccess modal & updated credit counter
+```
+
 ## 12. Database Design
 
 ### 12.1 Database technology
 
-SQLAlchemy connects to the configured SQL database using `DATABASE_URL`; the requirements include the psycopg PostgreSQL driver. The `users` table model stores account identity and status fields, including email, username, password hash, active status, and timestamps. The `credits` table stores a unique credit account per user, with balance and reserved-credit fields. Registration grants 50 credits; each research run reserves 20, refunds the charge on pipeline failure, and retains it on success. No migration or automatic table-creation command was found in the repository, so both tables must be provisioned separately.
+SQLAlchemy maps the application domain to a PostgreSQL database connected via `DATABASE_URL` (using the `psycopg` driver). The schema encompasses 6 primary relational models engineered for ACID-compliant transactional guarantees across research history, credit balances, and payments.
 
-### 12.2 Persistence behavior
+### 12.2 Relational Schema Specifications
 
-User account records, credit balances, and completed research records are stored in the configured SQL database. A report record includes its title/topic, generated report, critique, sources, and timestamps. Current chat messages and pending edits remain in frontend component state and are not saved as durable server-side records. Saved reports are available from the history route after a page refresh.
+#### 1. `users` Table
+Stores primary identity and account status.
 
-### 12.3 In-memory request and result structures
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Unique user identifier |
+| `username` | String | Unique, Not Null, Index | Account username |
+| `email` | String | Unique, Not Null, Index | Contact email address |
+| `hashed_password` | String | Not Null | Bcrypt password hash |
+| `is_active` | Boolean | Default True | Account activation state |
+| `purchased` | String | Default "free" | Current plan status (`free`, `monthly`, `yearly`, `top-up`) |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp | Account creation timestamp |
+| `updated_at` | TIMESTAMPTZ | OnUpdate Current Timestamp | Last profile update timestamp |
+
+#### 2. `credits` Table
+Stores real-time credit balance and dual-cadence reset markers.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Credit record identifier |
+| `user_id` | Integer | FK (`users.id`), Unique, Not Null | Owner reference |
+| `balance` | Integer | Default 50, Not Null | Currently available spending credits |
+| `reserved_credits` | Integer | Default 0, Not Null | In-flight credits reserved for running research |
+| `daily_credit_limit` | Integer | Default 50, Not Null | Quota ceiling for daily free tier resets |
+| `last_daily_reset_at` | TIMESTAMPTZ | Default Current Timestamp | Timestamp of last daily quota refresh (IST) |
+| `last_monthly_reset_at` | TIMESTAMPTZ | Default Current Timestamp | Timestamp of last monthly subscription quota refresh (IST) |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp | Ledger initialization timestamp |
+| `updated_at` | TIMESTAMPTZ | OnUpdate Current Timestamp | Balance modification timestamp |
+
+#### 3. `payments` Table
+Stores raw and normalized transaction audit logs from Razorpay.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Payment log identifier |
+| `user_id` | Integer | FK (`users.id`), Not Null, Index | Paying user reference |
+| `order_id` | String | Unique, Not Null, Index | Razorpay Order ID (`order_...`) |
+| `payment_id` | String | Unique, Nullable, Index | Razorpay Payment ID (`pay_...`) |
+| `amount` | Numeric(10,2) | Not Null | Transaction value in INR |
+| `currency` | String | Default "INR", Not Null | Transaction currency code |
+| `status` | String | Default "pending", Not Null | Status (`created`, `captured`, `failed`, `refunded`) |
+| `method` | String | Nullable | Payment instrument (`upi`, `card`, `netbanking`) |
+| `plan_name` | String | Nullable | Purchased SKU (`top-up`, `monthly`, `yearly`) |
+| `credits_added` | Integer | Default 0 | Incremental credits provisioned |
+| `raw_response` | JSONB / Text | Nullable | Full webhook or capture payload |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp | Order generation timestamp |
+| `updated_at` | TIMESTAMPTZ | OnUpdate Current Timestamp | Status transition timestamp |
+
+#### 4. `subscriptions` Table
+Manages active billing cycles and recurring validity periods.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Subscription identifier |
+| `user_id` | Integer | FK (`users.id`), Not Null, Index | Subscribing user reference |
+| `plan_name` | String | Not Null | Subscription tier (`monthly`, `yearly`) |
+| `razorpay_subscription_id` | String | Nullable, Index | Razorpay subscription ID (if recurring) |
+| `razorpay_payment_id` | String | Nullable | Anchor payment reference |
+| `status` | String | Default "active", Not Null | Lifecycle state (`active`, `expired`, `canceled`) |
+| `current_period_start` | TIMESTAMPTZ | Not Null | Start of current billing interval |
+| `current_period_end` | TIMESTAMPTZ | Not Null | Expiry date of active subscription |
+| `cancel_at_period_end` | Boolean | Default False | Auto-renewal disable flag |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp | Inception timestamp |
+| `updated_at` | TIMESTAMPTZ | OnUpdate Current Timestamp | Modification timestamp |
+
+#### 5. `credit_transactions` Table
+Immutable double-entry style audit ledger for every balance movement.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Transaction log identifier |
+| `user_id` | Integer | FK (`users.id`), Not Null, Index | Affected user reference |
+| `amount` | Integer | Not Null | Delta amount (positive for grants, negative for usage) |
+| `transaction_type` | String | Not Null | Type (`PURCHASE`, `USAGE`, `REFUND`, `DAILY_RESET`, `MONTHLY_RESET`) |
+| `reason` | String | Nullable | Human-readable description (e.g. "Research pipeline run") |
+| `balance_after` | Integer | Not Null | Post-transaction credit balance snapshot |
+| `reference_id` | String | Nullable, Index | Related entity ID (`order_id`, `payment_id`, or `report_id`) |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp, Index | Transaction posting timestamp |
+
+#### 6. `report_analysis` Table
+Stores generated multi-stage research syntheses, feedback, and citations.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | Integer | PK, Auto-increment | Report analysis identifier |
+| `user_id` | Integer | FK (`users.id`), Not Null, Index | Owning user reference |
+| `title` | String | Not Null | Report title or primary topic |
+| `topic` | Text | Not Null | Original search prompt |
+| `report` | Text | Not Null | Generated Markdown report synthesis |
+| `feedback` | Text | Nullable | Critic score and evaluation notes |
+| `sources` | JSON / Text | Nullable | Serialized list of consulted URL citations |
+| `status` | String | Default "completed" | Workflow completion status |
+| `created_at` | TIMESTAMPTZ | Default Current Timestamp, Index | Generation timestamp |
+| `updated_at` | TIMESTAMPTZ | OnUpdate Current Timestamp | Modification timestamp |
+
+### 12.3 Relational Entity-Relationship (ER) Model
+
+```mermaid
+erDiagram
+    users ||--|| credits : "owns quota"
+    users ||--o{ payments : "makes"
+    users ||--o{ subscriptions : "holds"
+    users ||--o{ credit_transactions : "logs"
+    users ||--o{ report_analysis : "generates"
+
+    users {
+        int id PK
+        string email UK
+        string username UK
+        string hashed_password
+        boolean is_active
+        string purchased
+        timestamptz created_at
+    }
+
+    credits {
+        int id PK
+        int user_id FK, UK
+        int balance
+        int reserved_credits
+        int daily_credit_limit
+        timestamptz last_daily_reset_at
+        timestamptz last_monthly_reset_at
+    }
+
+    payments {
+        int id PK
+        int user_id FK
+        string order_id UK
+        string payment_id UK
+        numeric amount
+        string status
+        string plan_name
+        int credits_added
+        timestamptz created_at
+    }
+
+    subscriptions {
+        int id PK
+        int user_id FK
+        string plan_name
+        string status
+        timestamptz current_period_start
+        timestamptz current_period_end
+    }
+
+    credit_transactions {
+        int id PK
+        int user_id FK
+        int amount
+        string transaction_type
+        int balance_after
+        string reference_id
+        timestamptz created_at
+    }
+
+    report_analysis {
+        int id PK
+        int user_id FK
+        string title
+        text report
+        text feedback
+        json sources
+        timestamptz created_at
+    }
+```
+
+### 12.4 In-memory request and result structures
 
 | Structure | Important fields | Purpose |
 |---|---|---|
@@ -551,26 +833,75 @@ User account records, credit balances, and completed research records are stored
 | Research result event | `type`, `report`, `feedback`, `sources`, `credits_balance`, `credits_reserved`, `report_id` | Completed research result, saved report identifier, and account credit state |
 | Edit request | `code`, `instruction`, `file_name` | Proposed report edit input |
 | Patch change | `old_text`, `new_text`, optional contexts, `reason` | A structured text replacement |
-
-Report records include the owning user ID; chat messages and conversation history are not persisted.
+| Payment Order Req | `plan_name: "top-up" \| "monthly" \| "yearly"` | Initiates checkout order creation |
+| Payment Verify Req | `razorpay_order_id`, `razorpay_payment_id`, `razorpay_signature`, `plan_name` | Cryptographic signature verification payload |
 
 ## 13. API Documentation
 
-All routes below are mounted below the `/api/v1` prefix. Authentication-protected routes require a valid JWT in the `access_token` cookie or an `Authorization: Bearer` header. Error responses produced by FastAPI use its standard JSON `detail` shape unless noted as an SSE event.
+All routes below are mounted below the `/api/v1` and `/api/payment` prefixes. Authentication-protected routes require a valid JWT in the `access_token` cookie or an `Authorization: Bearer` header.
 
-### 13.1 Account and user routes
+### 13.1 Account and User Routes
 
 | Method | Route | Authentication | Behavior |
 |---|---|---|---|
-| POST | `/api/v1/auth/register` | Public; IP rate limited | Create an account with 50 credits and return a JWT, user details, and balance. |
+| POST | `/api/v1/auth/register` | Public; IP rate limited | Create an account with 50 credits, initialize dual-reset timestamps, and return a JWT and user details. |
 | POST | `/api/v1/auth/login` | Public; IP rate limited | Validate credentials and return a JWT, user details, and current balance. |
-| POST | `/api/v1/auth/logout` | Public; IP rate limited | Clear the auth cookie; the client must also remove a locally stored bearer token. |
-| GET | `/api/v1/users/getUser` | Required | Return the current user's account details and credit balance. |
-| GET | `/api/v1/research/history` | Required | Return the current user's saved reports with report content, critique, status, and timestamps, newest first. |
-| GET | `/api/v1/research/history/{report_id}` | Required | Return one saved report, including sources, only when it belongs to the authenticated user. |
-| DELETE | `/api/v1/users/account` | Required | Placeholder response only; it does not delete the account. |
+| POST | `/api/v1/auth/logout` | Public; IP rate limited | Clear the auth cookie; client purges local auth tokens. |
+| GET | `/api/v1/users/getUser` | Required | Return current user details, plan (`purchased`), `credits.balance`, `reserved_credits`, and daily limits. |
+| GET | `/api/v1/research/history` | Required | Return current user's saved research reports, newest first. |
+| GET | `/api/v1/research/history/{report_id}` | Required | Return one saved report, including source citations, verified against account ownership. |
+| DELETE | `/api/v1/users/account` | Required | Placeholder endpoint for future account purging. |
 
-### 13.2 `POST /api/v1/research/`
+### 13.2 Payment and Credit Ledger Routes
+
+| Method | Route | Authentication | Behavior |
+|---|---|---|---|
+| POST | `/api/payment/create-order` | Required | Creates a Razorpay order with server-side plan pricing (INR in paise), persists pending payment log, and returns `{order_id, amount, currency, key_id}`. |
+| POST | `/api/payment/transaction/verify` | Required | Cryptographically verifies Razorpay HMAC-SHA256 signature, marks payment captured, allocates credits, and records subscription and audit transactions. |
+| POST | `/api/v1/creditTransaction/credit` | Required | Fetches the user's historical credit ledger entries with balance snapshots and transaction reasons. |
+
+#### Request & Response: `POST /api/payment/create-order`
+
+**Request:**
+```json
+{
+  "plan_name": "monthly"
+}
+```
+
+**Response (HTTP 200):**
+```json
+{
+  "order_id": "order_OGnZk9r12345",
+  "amount": 49900,
+  "currency": "INR",
+  "key_id": "rzp_test_..."
+}
+```
+
+#### Request & Response: `POST /api/payment/transaction/verify`
+
+**Request:**
+```json
+{
+  "razorpay_order_id": "order_OGnZk9r12345",
+  "razorpay_payment_id": "pay_OGnaBC98765",
+  "razorpay_signature": "5a4d3e2c1b0...",
+  "plan_name": "monthly"
+}
+```
+
+**Response (HTTP 200):**
+```json
+{
+  "status": "success",
+  "message": "Payment verified and subscription activated successfully",
+  "plan": "monthly",
+  "credits_added": 600
+}
+```
+
+### 13.3 Research Route: `POST /api/v1/research/`
 
 **Purpose:** Run research and stream progress/result/error events.
 
@@ -632,7 +963,7 @@ Error event:
 
 The exact error message is derived from the caught exception. The stream response sets no-cache and proxy-buffering headers.
 
-### 13.3 `POST /api/v1/chatagent/`
+### 13.4 `POST /api/v1/chatagent/`
 
 **Purpose:** Answer a user question using the supplied topic, report, and conversation.
 
@@ -665,7 +996,7 @@ Allowed message roles are `user` and `assistant`.
 
 **Validation/error behavior:** HTTP 400 is returned if `messages` is empty or the last message is not from the user. The route has `include_in_schema=False`, so it is intentionally omitted from the generated OpenAPI schema even though it remains callable.
 
-### 13.4 `POST /api/v1/chatagent/editchat`
+### 13.5 `POST /api/v1/chatagent/editchat`
 
 **Purpose:** Generate a structured text patch, apply it to the supplied content, and return the updated content and diff.
 
@@ -712,7 +1043,7 @@ If no changes are generated, the route returns `{"success": false, "message": ..
 - Python syntax is checked only when the submitted filename has a `.py` extension.
 - Unexpected edit-generation failures are logged and returned as HTTP 502 with a generic client detail.
 
-### 13.5 CORS and authentication
+### 13.6 CORS and Authentication
 
 The backend permits configured frontend origins, including `http://localhost:5173`, and optional origins from `FRONTEND_URL` and `FRONTEND_URL_2`. Methods and headers are configured with wildcard lists. Protected routes use the shared JWT-based current-user dependency. The login/register response also sets an HttpOnly cookie; the current code sets `secure=False`, which should be hardened for HTTPS production deployments. Selected route limits depend on Redis; rate limits do not imply broader authorization or saved-data ownership.
 
@@ -720,18 +1051,48 @@ The backend permits configured frontend origins, including `http://localhost:517
 
 No captured application screenshots were found in the repository. `frontend/src/assets/hero.png` is a design asset, not a screenshot of the application. The following references are explicitly placeholders; they are not actual screenshots.
 
-### 14.1 Research workspace
+### 14.1 Desktop Research Workspace
 
 ![Placeholder: capture the real ResearchMind workspace with a completed report](./screenshots/research-workspace.png)
 
-- **Screen name:** Home / Research workspace
-- **Description:** Topic entry, progress status, report/review content, and assistant.
+- **Screen name:** Home / Research Workspace (Desktop View $\ge$ 900px)
+- **Description:** Topic entry, progress status, side-by-side Markdown report and interactive AI Assistant.
 - **Purpose:** Start research and work with the resulting report.
-- **Main components:** Topic input, suggestions, start button, progress indicator, report/review card, assistant panel.
+- **Main components:** Topic input, suggestions, start button, progress indicator, report/review card, assistant panel with mode toggles.
 - **Interactions:** Submit topic, choose suggestions, read report/review, edit/copy/download, ask questions, request edits, accept/reject proposals.
 - **Related functionality:** Research, report presentation, report chat, report editing/export.
 
-### 14.2 About page
+### 14.2 Mobile Responsive Workspace & Navigation Drawer
+
+![Placeholder: capture the mobile responsive view with segmented switcher](./screenshots/mobile-workspace.png)
+
+- **Screen name:** Mobile Research Workspace (<900px) & Navigation Drawer (<768px)
+- **Description:** Full-screen optimized mobile layout featuring a sliding hamburger navigation drawer and a segmented toggle switch (`📄 Report` vs `💬 AI Assistant`).
+- **Purpose:** Provide an uncluttered, responsive experience for tablet and smartphone viewports.
+- **Main components:** Mobile hamburger toggle, sliding drawer with auth/pricing links, segmented mobile tab control, full-width scrollable report view, and full-width chat assistant.
+- **Interactions:** Tap hamburger menu to open drawer, tap segmented pills to toggle between report reading and chat assistance.
+
+### 14.3 Plans and Payment Checkout Modal
+
+![Placeholder: capture the plans selection and checkout modal](./screenshots/plans-billing-modal.png)
+
+- **Screen name:** Billing & Subscription Plans Modal
+- **Description:** Tiered card display highlighting Free (50 credits daily), Top-up (50 credits for ₹50), Monthly (600 credits for ₹499), and Yearly (800 credits/mo for ₹4,999).
+- **Purpose:** Present monetization tiers and initiate Razorpay checkout.
+- **Main components:** Feature comparison matrix, plan pricing badges, "Upgrade / Purchase" CTA buttons, Razorpay modal launcher.
+- **Interactions:** Select plan, launch Razorpay payment popup, complete card/UPI transaction, view success receipt.
+
+### 14.4 Assistant Edit Proposal & Sticky Diff Review Bar
+
+![Placeholder: capture the assistant when an edit proposal is awaiting review](./screenshots/assistant-edit-review.png)
+
+- **Screen name:** Pending Edit Proposal & Sticky Review Action Bar
+- **Description:** A requested report change is displayed with inline before/after diffs (`shrink-0` protected) and a docked action bar above the input.
+- **Purpose:** Keep the user in complete control of AI-proposed edits with zero layout collapse or scroll obscuration.
+- **Main components:** Inline diff comparison cards with green/red syntax highlighting, sticky action bar with `[Accept]` and `[Reject]` controls, auto-scroll focus trigger.
+- **Interactions:** Review changes, click Accept to patch document or Reject to discard.
+
+### 14.5 About Page
 
 ![Placeholder: capture the real ResearchMind About page](./screenshots/about-page.png)
 
@@ -741,13 +1102,6 @@ No captured application screenshots were found in the repository. `frontend/src/
 - **Main components:** Overview hero, feature cards, objectives, audience cards, project profile, limitations notice.
 - **Interactions:** Navigate back to the workspace.
 - **Related functionality:** Product discovery and user guidance.
-
-### 14.3 Assistant edit review state
-
-![Placeholder: capture the assistant when an edit proposal is awaiting review](./screenshots/assistant-edit-review.png)
-
-- **Screen name:** Pending edit proposal (state within the workspace)
-- **Description:** A requested report change is displayed with old/new text, and acceptance/rejection actions.
 - **Purpose:** Keep the user in control of AI-proposed edits.
 - **Main components:** Assistant messages, edit diff, Reject and Accept changes buttons.
 - **Interactions:** Review, accept, or reject suggested edits.
@@ -770,19 +1124,46 @@ To supply screenshots, capture the real application and place image files at the
 │   ├── pyproject.toml
 │   ├── requirements.txt
 │   └── src/
-│       ├── api/v1/
-│       │   ├── routes.py
-│       │   └── Routes/
-│       │       ├── Research.py
-│       │       └── ChatAgent.py
+│       ├── api/
+│       │   ├── v1/
+│       │   │   ├── routes.py
+│       │   │   └── Routes/
+│       │   │       ├── Auth.py
+│       │   │       ├── User.py
+│       │   │       ├── Research.py
+│       │   │       └── ChatAgent.py
+│       │   └── payment/
+│       │       └── Routes/
+│       │           ├── Razorpay.py
+│       │           ├── Trasaction.py
+│       │           └── creditTransaction.py
+│       ├── config/
+│       │   └── settings.py
+│       ├── core/
+│       │   └── rate_limiting.py
+│       ├── db/
+│       │   ├── database.py
+│       │   └── redis.py
 │       ├── dependencies/
 │       │   ├── agents.py
+│       │   ├── credit_restore_helper.py
 │       │   ├── patcher.py
 │       │   ├── pipeline.py
-│       │   └── tools.py
+│       │   ├── tools.py
+│       │   └── user.py
+│       ├── models/
+│       │   ├── credit_transaction.py
+│       │   ├── credits.py
+│       │   ├── payment.py
+│       │   ├── research.py
+│       │   ├── subscription.py
+│       │   └── user.py
+│       ├── payment/
+│       │   └── payment.py
 │       └── schema/
 │           ├── ChatAgent.py
-│           └── SchemaModel.py
+│           ├── SchemaModel.py
+│           └── user.py
 └── frontend/
     ├── package.json
     ├── package-lock.json
@@ -796,7 +1177,23 @@ To supply screenshots, capture the real application and place image files at the
         ├── main.jsx
         ├── steps.js
         ├── Components/
+        │   ├── ChatBot.jsx
+        │   ├── Navbar.jsx
+        │   ├── ReportView.jsx
+        │   └── Sidebar.jsx
         └── Pages/
+            ├── AboutPage/
+            │   └── AboutPage.jsx
+            ├── Auth/
+            │   ├── Login.jsx
+            │   └── Register.jsx
+            ├── HomePage/
+            │   └── HomePage.jsx
+            └── Payment/
+                ├── BuyCredit.jsx
+                ├── PaymentFailed.jsx
+                ├── PaymentSuccess.jsx
+                └── Plans.jsx
 ```
 
 Generated dependencies, build output, and local environment files are omitted from this structural summary.
@@ -912,7 +1309,7 @@ Build, lint, syntax, and selected layout checks do not prove model accuracy, pro
 
 ### 17.1 Implemented functionality
 
-- React Home and About pages.
+- Responsive React Home and About pages with mobile drawer navigation (<768px) and segmented mobile workspace switcher (`📄 Report` vs `💬 AI Assistant` on <900px).
 - Topic form with suggested subjects.
 - Four-step status/progress UI.
 - Firecrawl-based news retrieval.
@@ -922,9 +1319,13 @@ Build, lint, syntax, and selected layout checks do not prove model accuracy, pro
 - Markdown report/review rendering.
 - Report direct edit, copy, and download controls.
 - Report-grounded assistant chat.
-- Structured edit proposals with user accept/reject flow.
+- Structured edit proposals with unified diff previews, flexbox shrink-protection, auto-scroll focus, and sticky accept/reject review bar.
 - Request validation for edit inputs.
-- Account credit balances: new accounts receive 50 credits, research reserves 20 per run, failures refund the charge, and the Home page displays the balance from the account endpoint and research result events.
+- Razorpay payment gateway integration supporting order creation, client modal checkout, and server-side HMAC-SHA256 signature verification.
+- Tiered credit and subscription system: Free tier (50 credits/daily reset), Top-up (50 credits for ₹50), Monthly subscription (600 credits for ₹499), and Yearly subscription (800 credits/mo for ₹4,999).
+- Dual-cadence credit quota management separating `last_daily_reset_at` from `last_monthly_reset_at` in IST to protect purchased and subscription balances.
+- Atomic 20-credit reservation on research initiation, deduction on completion, and automated refund on failure.
+- Immutable `credit_transactions` audit ledger and `payments` transaction tracking across 6 relational PostgreSQL tables.
 
 ### 17.2 Observed results
 
@@ -971,9 +1372,9 @@ The frontend build, lint, and backend syntax compilation completed successfully 
 
 ## 19. Conclusion
 
-ResearchMind is a working prototype that combines a browser-based research workspace with a Python service and external research and generative-AI integrations. Its implemented user features include topic research, progress visibility, source-linked report generation, separate critique, report chat, editing, export, and reviewable AI-suggested changes.
+ResearchMind is an end-to-end AI research and report synthesis platform that combines a modern, mobile-responsive browser workspace with a typed Python FastAPI service, cloud generative AI providers, and complete Razorpay payment monetization. Its implemented features encompass multi-stage topic research, real-time SSE progress streaming, source-linked report generation, automated critique, report-grounded Q&A, in-place editing, and reviewable AI-suggested diff proposals with sticky human-in-the-loop controls.
 
-The project demonstrates a full-stack AI product workflow, basic account authentication, selected rate limits, saved per-user research history, and a user-in-control approach to generated edits. User accounts and research reports are persisted, but conversations are not. Outputs remain drafts that require verification. Automated test coverage, formal model evaluation, account deletion, and complete production deployment controls remain future work.
+The platform demonstrates robust full-stack engineering practices: JWT authentication, Redis rate limiting, persistent report history, an atomic 6-table relational PostgreSQL schema, and a production-grade credit and subscription ledger featuring dual-cadence daily/monthly resets. Generated reports remain initial syntheses requiring human source verification. Future work focuses on webhook retry idempotency, automated integration testing, and production container orchestration.
 
 ## 20. References
 

@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { suggestReportEdit, suggestReportInfo } from "../api";
+import {
+  suggestReportEdit,
+  suggestReportInfo,
+  updateReportInformation,
+} from "../api";
 
 const SUGGESTIONS = [
   "Make the report shorter",
@@ -27,7 +31,9 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
         behavior: smooth ? "smooth" : "auto",
       });
     } else if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+      messagesEndRef.current.scrollIntoView({
+        behavior: smooth ? "smooth" : "auto",
+      });
     }
   };
 
@@ -37,6 +43,9 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
     const timer = setTimeout(() => scrollToBottom(false), 100);
     return () => clearTimeout(timer);
   }, [messages, sending, pendingEdit]);
+
+  // ----------------------------------------------
+  // sned instruction to the backend
 
   const sendMessage = async (text = input) => {
     const question = text.trim();
@@ -94,10 +103,17 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
     }
   };
 
-  const acceptEdit = () => {
+  const acceptEdit = async () => {
     if (!pendingEdit) return;
+
     onReportChange(pendingEdit.updatedReport);
+    updateReportInformation(
+      (topic = topic),
+      (report = pendingEdit.updatedReport),
+    );
+
     setPendingEdit(null);
+
     setMessages((current) => [
       ...current,
       {
@@ -196,7 +212,8 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
               Run research first
             </p>
             <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
-              Generate a report to ask questions, request revisions, or propose edits.
+              Generate a report to ask questions, request revisions, or propose
+              edits.
             </p>
           </div>
         ) : messages.length === 0 ? (
@@ -205,7 +222,8 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
               Ready to assist with your report
             </p>
             <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-              Ask questions about the findings, or switch to Edit Assistant to modify sections.
+              Ask questions about the findings, or switch to Edit Assistant to
+              modify sections.
             </p>
             <div className="mt-4 flex flex-col gap-1.5">
               {SUGGESTIONS.map((s) => (
@@ -258,7 +276,10 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                       </p>
                       <p className="text-[10px] text-[var(--text-tertiary)]">
                         {pendingEdit.changes?.length || 1}{" "}
-                        {pendingEdit.changes?.length === 1 ? "modification" : "modifications"} · Review before applying
+                        {pendingEdit.changes?.length === 1
+                          ? "modification"
+                          : "modifications"}{" "}
+                        · Review before applying
                       </p>
                     </div>
                   </div>
@@ -275,8 +296,19 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                       onClick={acceptEdit}
                       className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white shadow transition hover:bg-[var(--accent-hover)]"
                     >
-                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                        <path d="m3.5 8.25 3 3 6-6.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                      >
+                        <path
+                          d="m3.5 8.25 3 3 6-6.5"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
                       </svg>
                       Accept
                     </button>
@@ -301,7 +333,9 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                               key={`removed-${lineIndex}`}
                               className="whitespace-pre-wrap break-all bg-[var(--danger-muted)] px-2.5 py-1 text-[var(--danger)] m-0"
                             >
-                              <span className="mr-1.5 select-none font-bold text-red-400">−</span>
+                              <span className="mr-1.5 select-none font-bold text-red-400">
+                                −
+                              </span>
                               {line || " "}
                             </pre>
                           ))}
@@ -311,7 +345,9 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                               key={`added-${lineIndex}`}
                               className="whitespace-pre-wrap break-all bg-[var(--success-muted)] px-2.5 py-1 text-[var(--success)] m-0"
                             >
-                              <span className="mr-1.5 select-none font-bold text-emerald-400">+</span>
+                              <span className="mr-1.5 select-none font-bold text-emerald-400">
+                                +
+                              </span>
                               {line || " "}
                             </pre>
                           ))}
@@ -381,7 +417,13 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
                   className="inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white hover:bg-[var(--accent-hover)] transition shadow active:scale-95"
                 >
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                    <path d="m3.5 8.25 3 3 6-6.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path
+                      d="m3.5 8.25 3 3 6-6.5"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                   <span>Accept</span>
                 </button>
@@ -396,8 +438,12 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
             onClick={() => setisCodeFix(!isCodeFix)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1 text-[11px] sm:text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--text-primary)]"
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${isCodeFix ? "bg-amber-400" : "bg-emerald-400"}`} />
-            <span>{isCodeFix ? "Mode: Edit Assistant" : "Mode: Report Chat"}</span>
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${isCodeFix ? "bg-amber-400" : "bg-emerald-400"}`}
+            />
+            <span>
+              {isCodeFix ? "Mode: Edit Assistant" : "Mode: Report Chat"}
+            </span>
           </button>
           <span className="text-[10px] text-[var(--text-tertiary)]">
             {isCodeFix ? "2 credits" : "1 credit"}
@@ -419,10 +465,10 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
               !report
                 ? "Generate a report to start"
                 : pendingEdit
-                ? "Review pending edits above or use Accept/Reject"
-                : isCodeFix
-                ? "Instruct changes to the report…"
-                : "Ask about this report…"
+                  ? "Review pending edits above or use Accept/Reject"
+                  : isCodeFix
+                    ? "Instruct changes to the report…"
+                    : "Ask about this report…"
             }
             rows={1}
             aria-label="Message the report assistant"
@@ -430,7 +476,9 @@ export default function ChatBot({ topic, report, onReportChange, setCredits }) {
           />
           <button
             type="submit"
-            disabled={!report || !input.trim() || sending || Boolean(pendingEdit)}
+            disabled={
+              !report || !input.trim() || sending || Boolean(pendingEdit)
+            }
             aria-label="Send message"
             className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-white transition hover:bg-[var(--accent-hover)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
           >

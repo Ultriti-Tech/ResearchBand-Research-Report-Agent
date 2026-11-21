@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 # import files
 from src.dependencies.pipeline import run_search_pipeline, to_text
-from src.schema.SchemaModel import ResearchReq, ReportHistoryResponse
+from src.schema.SchemaModel import ResearchReq, ReportHistoryResponse, UpdateReq
 
 
 from src.db.database import get_db
@@ -214,8 +214,10 @@ def reportHistory(
             detail=str(e),
         )
 
+
 # ----------------------------------
-# get single report history 
+# get single report history
+
 
 @router.get(
     "/history/{report_id}",
@@ -245,3 +247,34 @@ def get_report_history_item(
         raise HTTPException(status_code=404, detail="Report not found")
 
     return report
+
+
+# ---------------------------------------
+# update the report
+@router.put("/report/{report_id}", response_model=UpdateReq)
+def updateReport_(
+    report_id: UUID,
+    request: UpdateReq,
+    db: Annotated[Session, Depends(get_db)],
+    user: CurrentUser,
+):
+    report = db.scalar(
+        select(ReportAnalysis).where(
+            ReportAnalysis.id == report_id,
+            ReportAnalysis.user_id == user.id,
+        )
+    )
+    
+    print(request.topic)
+    # print("--------------------------------------------------------- \n",request.report)
+
+    reportCont = request.report
+    reportTopic = request.topic
+
+    report.title = reportTopic
+    report.report_content = reportCont
+
+    db.commit()
+    db.refresh(report)
+
+    return UpdateReq(topic=report.title, report=report.report_content)

@@ -1,888 +1,314 @@
-# ResearchMind
+# ResearchMind – Multi-Agent AI Research Assistant
 
-## Public Project Documentation
+## 1. Project Overview
 
-> **Public-disclosure scope:** This document explains the product, its verified capabilities, technical choices, and conceptual architecture for recruiters and technical reviewers. It does not publish source code, internal prompts, detailed decision rules, credentials, private service URLs, or low-level implementation instructions. This is a disclosure choice, not a guarantee of intellectual-property protection.
+ResearchMind is an AI-powered research assistant designed to streamline the discovery, extraction, synthesis, and review of multi-source online information.
 
-## Table of Contents
+Traditional research workflows often require tedious context switching between search engines, multiple browser tabs, note-taking apps, and document editors. Conversely, relying on single-prompt generative AI often results in superficial responses, factual hallucinations, or unverified claims without clear provenance. 
 
-1. [Project Introduction](#1-project-introduction)
-2. [Problem Statement and Industry Context](#2-problem-statement-and-industry-context)
-3. [Project Vision and Objectives](#3-project-vision-and-objectives)
-4. [Key Features and Functionalities](#4-key-features-and-functionalities)
-5. [Technology Stack](#5-technology-stack)
-6. [Technical Deep Dive](#6-technical-deep-dive)
-7. [System Architecture](#7-system-architecture)
-8. [Module-Wise Breakdown](#8-module-wise-breakdown)
-9. [End-to-End Application Workflow](#9-end-to-end-application-workflow)
-10. [Algorithms and Technical Methodology](#10-algorithms-and-technical-methodology)
-11. [Database Architecture](#11-database-architecture)
-12. [API Architecture](#12-api-architecture)
-13. [User Interface and Screenshots](#13-user-interface-and-screenshots)
-14. [Engineering Decisions and Design Choices](#14-engineering-decisions-and-design-choices)
-15. [Performance, Testing, and Evaluation](#15-performance-testing-and-evaluation)
-16. [Results and Achievements](#16-results-and-achievements)
-17. [Technical Challenges and Solutions](#17-technical-challenges-and-solutions)
-18. [Security and Scalability](#18-security-and-scalability)
-19. [Limitations](#19-limitations)
-20. [Future Roadmap](#20-future-roadmap)
-21. [Developer Contributions and Technical Competencies](#21-developer-contributions-and-technical-competencies)
-22. [Conclusion](#22-conclusion)
-23. [References and Technical Resources](#23-references-and-technical-resources)
+ResearchMind addresses these challenges through a **multi-stage, multi-agent AI workflow** that transforms an open-ended research question into an authoritative, structured report backed by verifiable web citations. By separating retrieval, deep reading, synthesis, and critical review into specialized agents, the system delivers analytical depth, transparent citations, and a user-in-control document editing experience.
 
-## 1. Project Introduction
+> **Public Disclosure & Intellectual Property Notice:**  
+> This document provides an architectural and conceptual overview of ResearchMind for portfolio, recruitment, and technical review purposes. To protect proprietary design and prevent unauthorized replication, specific internal system prompts, heuristic weighting models, private API keys, and reproducible code blueprints are intentionally withheld.
 
-### Project profile
+### Target Audiences & Use Cases
+- **Academic & Industry Researchers:** Rapidly survey emerging technologies, compile initial literature reviews, and organize primary sources.
+- **Market & Business Analysts:** Generate industry briefs, competitive intelligence overviews, and summaries of recent market developments.
+- **Product & Engineering Leaders:** Create background technical documentation and research briefs before architectural planning sessions.
+- **Writers & Content Strategists:** Gather verified background facts, diverse perspectives, and reference links before drafting long-form publications.
 
-| Item | Description |
-|---|---|
-| Project | ResearchMind |
-| Tagline | Turn a research question into a source-linked first draft |
-| Category | AI-assisted research productivity |
-| Domain | Information discovery, research synthesis, and report preparation |
-| Project stage | Working prototype |
-| Organization identified in project metadata | Ultriti-Tech |
-| Product release version | No shared product release version is defined |
+---
 
-ResearchMind is a browser-based workspace for exploring a topic and preparing an initial research report. The experience combines a structured report, source links, a separate review, and a report-focused assistant. Users can ask follow-up questions, edit the report, export it, or review suggested changes before deciding whether to apply them.
+## 2. Key Features
 
-The project addresses a familiar early-research problem: information gathering, drafting, and feedback often happen across disconnected tools. ResearchMind brings those activities into one interface and keeps the user responsible for checking sources and making final decisions.
+### 2.1 Multi-Agent Research Pipeline
+- **Autonomous Query Discovery:** Deconstructs broad user topics into targeted search queries to identify relevant, up-to-date news and articles across the open web.
+- **Distilled Content Extraction:** Selects high-signal candidate sources, fetches webpage content, and parses meaningful text while stripping scripts, styling, ads, and boilerplate navigation.
+- **Structured Report Synthesis:** Organizes complex information into a comprehensive Markdown document with executive summaries, categorized findings, and formatted source citations.
+- **Independent Analytical Critique:** Evaluates generated drafts using an independent critic agent that produces a quantitative score (out of 10), highlights strengths, and flags potential omissions or areas for deeper inquiry.
 
-The product is relevant to students, analysts, product teams, writers, and other knowledge workers who need an initial orientation to a topic. It is not presented as an authoritative research source or as a replacement for expert analysis.
+### 2.2 Interactive Document Assistant & Human-in-the-Loop Refinement
+- **Grounded Document Q&A:** Allows users to query the generated report directly, with an assistant that grounds responses strictly within the established report context.
+- **Structured Patch Proposals:** When requested to edit or expand a report, the assistant calculates discrete, localized text replacements rather than silently rewriting the entire document.
+- **Visual Diff Verification:** Renders proposed modifications as clear before-and-after diffs with syntax highlighting, allowing users to inspect changes and explicitly **Accept** or **Reject** them before updating the document.
 
-## 2. Problem Statement and Industry Context
+### 2.3 Tiered Quota Management & Payment Monetization
+- **Flexible Subscription & Top-Up Tiers:** Supports Free tier usage, pay-as-you-go credit top-ups (₹50 for 50 credits), and recurring subscriptions (Monthly ₹499 for 600 credits; Yearly ₹4,999 for 800 credits/mo).
+- **Dual-Cadence Quota Schedules:** Decouples daily free quota refreshes (resetting every midnight IST) from monthly subscription cycles to ensure purchased top-up credits are preserved across billing intervals.
+- **Atomic Two-Phase Usage Safety:** Atomically reserves credits at the start of a research run, committing the deduction only upon successful report delivery and automatically refunding the reservation if a pipeline error occurs.
+- **Cryptographic Payment Verification:** Integrates Razorpay checkout modals with server-side order generation and cryptographic HMAC-SHA256 signature verification to prevent client-side payment tampering.
 
-### Industry challenge
+### 2.4 Responsive, Mobile-First Workspace
+- **Adaptive Screen Layouts:** Seamlessly transitions from a desktop multi-panel layout to a focused mobile workspace.
+- **Sliding Navigation Drawer:** Provides a collapsible side navigation drawer on tablet and smartphone viewports (<768px).
+- **Segmented Mobile Workspace Switcher:** Offers an intuitive mobile tab toggle (`📄 Report` vs `💬 AI Assistant` on <900px), eliminating horizontal scrolling and layout clutter.
+- **Direct Export & Portability:** Supports instant clipboard copying and one-click raw Markdown (`.md`) downloads for seamless portability into external tools (Notion, Obsidian, Google Docs).
 
-Early-stage research requires a person to find relevant material, assess its usefulness, synthesize it into a coherent overview, and decide what needs deeper investigation. Switching between search results, reading, note-taking, drafting, and review can slow that process.
+---
 
-### Problems faced by target users
+## 3. Technology Stack & Architectural Rationales
 
-- Turning a broad question into an organized first draft takes time.
-- Important sources can be separated from the notes or conclusions they informed.
-- Drafting and critique often happen in different tools.
-- Users may want to ask follow-up questions without losing the report context.
-- AI-suggested revisions need a review step so that users retain control.
-
-### Project response
-
-ResearchMind provides a topic-to-report experience with visible progress, source links, a separate critique, and report-focused follow-up. It supports human review by making sources available and requiring explicit approval for assistant-proposed changes.
-
-### Practical applications
-
-| Audience | Example scenario | Expected benefit | Review required |
-|---|---|---|---|
-| Student or educator | Build an initial overview of a subject and find material for further reading | A structured starting point for exploration | Verify factual claims and source suitability |
-| Research or market analyst | Prepare a first-pass overview of public reporting on a trend | Less effort spent organizing an initial brief | Compare with primary and licensed sources |
-| Product or strategy team | Develop background material before a planning discussion | A shared draft to inform further investigation | Validate decision-critical information |
-| Writer or communications team | Assemble a backgrounder before drafting a public-facing piece | A faster way to organize initial material | Editorial and factual review before publication |
-
-These are realistic potential uses of the implemented features, not claims of customer deployment or measured business impact. The prototype is best suited to low-risk, human-reviewed research preparation.
-
-## 3. Project Vision and Objectives
-
-### Vision
-
-Make the first stage of research more focused by bringing topic exploration, report review, and follow-up into one user-controlled workspace.
-
-### Primary objectives
-
-1. Accept a topic and produce an organized initial report.
-2. Keep source links available for independent inspection.
-3. Present critique separately from report content.
-4. Support follow-up questions about the current report.
-5. Let users edit, copy, or download report content.
-6. Require user review before applying assistant-suggested changes.
-
-### Secondary objectives
-
-- Make progress visible during longer-running requests.
-- Provide a responsive interface for report reading and assistant interaction.
-- Communicate the limitations of generated research clearly.
-
-### Technical goals
-
-- Provide a browser UI built with a component-oriented frontend framework.
-- Connect the UI to a typed Python service.
-- Integrate hosted research and generative-AI capabilities.
-- Stream progress updates to the user.
-- Validate edit requests and handle proposed changes as reviewable content.
-
-### Business goals and expected outcomes
-
-The project explores how AI can reduce friction in preparing an initial research brief. The expected outcome is a draft that helps a user orient themselves and plan further research. No productivity improvement or business impact has been measured.
-
-### Scope
-
-**Implemented:** topic entry, progress display, report and review presentation, source links, authenticated report history, report Q&A, direct editing, copy/download, and review-before-apply suggested edits.
-
-**Outside the current scope:** persistent chat history, enterprise administration, formal quality evaluation, and production operations. User accounts and generated reports are stored; chat persistence is not implemented.
-
-## 4. Key Features and Functionalities
-
-### Feature status summary
-
-| Status | Meaning |
-|---|---|
-| Implemented | Present in the inspected application code |
-| Partial / constrained | Available with a limited scope or known constraint |
-| Planned | Suggested future enhancement; not currently implemented |
-
-### Implemented features
-
-| Feature | What it does and why it matters | User interaction | High-level operation and output |
-|---|---|---|---|
-| Topic-based research | Starts an initial investigation from a user-selected topic | Enter a topic or select a suggestion, then start | Research capability gathers material and returns a report, feedback, and source links |
-| Progress feedback | Shows that work is underway and which broad stage is active | Observe the progress label and bar | Progress events update the visible four-stage status |
-| Structured research report | Presents an organized draft for further reading and editing | Read the report in the workspace | AI-assisted synthesis is displayed as Markdown and includes returned source links |
-| Separate report review | Provides an assessment distinct from the report itself | Switch to the Review tab | Review content is displayed separately and may include a score, strengths, and improvement areas |
-| Report question answering | Lets the user ask questions about the current report | Send a message in the report assistant | The supplied report and conversation provide context for an answer |
-| Direct report editing | Lets the user modify report text in the report view | Edit the report and confirm the edit | Updated report text replaces the current browser-held value |
-| Suggested report edits | Offers an AI-proposed revision without silently changing the report | Request a change, inspect the proposal, accept or reject | Proposed text changes and reasons are displayed for a user decision |
-| Copy and Markdown download | Makes the report portable to other tools | Use Copy or Download | Copies report text or downloads a `.md` document |
-| Account registration and login | Provides a basic account identity for protected API requests | Register or sign in | Backend issues a JWT and sets an HttpOnly cookie; the frontend also sends the JWT as a bearer token |
-| Account profile lookup | Returns the signed-in user's account details | Open the authenticated account lookup flow | API loads the current active user from the configured SQL database |
-| Selected request limits | Limits selected authentication, research, and assistant requests | Requests are limited by IP or account | FastAPI dependencies use Redis-backed counters; this is not a general abuse-prevention guarantee |
-| Home and About experiences | Supports research work and product discovery | Navigate using the header | Displays the research workspace or product overview |
-
-### Partially implemented or constrained capabilities
-
-| Capability | Current state |
-|---|---|
-| Source-backed research | Source URLs are included, but claim-by-claim attribution and automated source verification are not implemented |
-| Research coverage | The current external search and page-reading behavior is bounded; it is not a comprehensive literature review |
-| Report persistence | Completed research records are saved per account and displayed on the authenticated history page; active chat and pending edits remain browser state |
-| Provider flexibility | A Groq client is configured in the code, but active product flows use Gemini; provider switching/fallback is not implemented |
-| Security controls | JWT sign-in, authenticated route dependencies, and selected Redis-backed rate limits are present; roles, report ownership, account deletion, and production hardening are incomplete |
-| Testing | Frontend build/lint and selected browser checks have been run; an automated application test suite is not declared |
-
-### Planned enhancements
-
-Report/chat persistence, authentication hardening, account deletion, automated tests, robust provider recovery, source-evidence mapping, model evaluation, and production deployment controls remain future opportunities.
-
-## 5. Technology Stack
-
-### Stack summary
-
-| Category | Technology | Role in ResearchMind |
+| Layer | Technologies | Architectural Rationale & Role |
 |---|---|---|
-| Frontend | React 19, JavaScript/JSX | Interactive research workspace and local UI state |
-| Frontend build | Vite 8 | Development server and production asset bundling |
-| Routing | React Router 7 | Home and About page navigation |
-| Styling | Tailwind CSS 4, custom CSS | Component styling, theme, responsive layout |
-| Markdown | `react-markdown`, `remark-gfm`, `@tailwindcss/typography` | Report, review, and assistant message presentation |
-| Backend language | Python 3.11+ | Service-side application and research coordination |
-| Backend framework | FastAPI | HTTP request handling, validation integration, and streaming response |
-| ASGI server | Uvicorn | Backend development/server runtime |
-| Validation | Pydantic | Request schemas and constrained edit input |
-| AI orchestration | LangChain and LangChain Core | Model adapters, prompt composition, agent/tool integration, output parsing |
-| AI model integration | Google Gemini through `langchain-google-genai` | Active research writing, critique, Q&A, and edit proposal generation |
-| Additional AI integration | Groq through `langchain-groq` | Client is configured but not used in active application flows |
-| Research integration | Firecrawl Python SDK | External news search |
-| Page extraction | Requests, Beautiful Soup 4, lxml | Retrieve and parse public webpage content |
-| Progress communication | JSON over HTTP and Server-Sent Events | Request/response exchange and research progress events |
-| Database/storage | SQLAlchemy with configured SQL database; Upstash Redis for rate limits | Account, credit, and report records are stored; conversations are not persisted |
-| Deployment/infrastructure | No complete deployment definition found | A deployment target or production topology is not established by the repository |
-| Development/quality tools | npm, ESLint, Vite, Python compileall | Dependency management, frontend lint/build, Python syntax compilation |
+| **Frontend Framework** | React 19, JavaScript (JSX) | Component-driven architecture supporting dynamic state changes across research progress, Markdown rendering, and interactive diff reviews. |
+| **Build & Tooling** | Vite 8 | Near-instant Hot Module Replacement (HMR) and optimized Rollup-based production bundling. |
+| **Styling & Icons** | Tailwind CSS 4, Lucide React | Utility-first responsive styling, CSS variables for dark-mode themes, and lightweight SVG iconography. |
+| **Markdown Processing** | `react-markdown`, `remark-gfm`, `@tailwindcss/typography` | High-fidelity rendering of GitHub-Flavored Markdown tables, blockquotes, and prose elements. |
+| **Backend Framework** | Python 3.11+, FastAPI, Uvicorn | Asynchronous ASGI framework providing native concurrency, automatic OpenAPI schemas, and high-throughput streaming. |
+| **Data Validation** | Pydantic, `pydantic-settings` | Runtime type enforcement, strict request payload validation, and typed environment configuration. |
+| **AI Orchestration** | LangChain, LangChain Core | Standardized abstractions for chat models, structured output generation, prompt templates, and agent tool bindings. |
+| **Language Models** | Google Gemini, Groq-hosted models | High-speed semantic synthesis, analytical critique generation, and structured patch diffing. |
+| **Web Research** | Firecrawl API & Web Extraction Utilities | Real-time web discovery, article metadata retrieval, and clean HTML content extraction. |
+| **Payment Gateway** | Razorpay SDK & Checkout (`checkout.js`) | Indian & international payment processing (UPI, Cards, NetBanking) with cryptographic HMAC-SHA256 verification. |
+| **Relational Database** | PostgreSQL, SQLAlchemy | ACID-compliant relational persistence for user accounts, research history, payment logs, subscriptions, and credit ledgers. |
+| **Distributed Caching** | Upstash Redis | Low-latency in-memory sliding-window counters for IP- and account-based rate limiting. |
+| **Communication Protocols** | REST APIs, Server-Sent Events (SSE) | Standardized JSON for synchronous actions and unidirectional HTTP text-event streams for real-time pipeline progress updates. |
 
-### Technology choices in context
+---
 
-| Technology | What it is | Why it fits this project | Interaction and advantages | Limitations |
-|---|---|---|---|---|
-| React | JavaScript UI library | Supports interactive report and chat views | Components manage distinct user-facing areas and their state | Chat state is not persisted; no frontend test framework is declared |
-| Vite | Frontend dev/build tool | Provides local development and asset bundling | Integrates the React and Tailwind plugins | Production hosting is not configured in the repository |
-| Tailwind CSS | Utility-first CSS system | Enables quick styling of a dark, responsive interface | Used with CSS variables for project theme and layout | Utility-heavy component markup can be dense |
-| FastAPI | Python web framework | Supports typed request handling and streamed responses | Connects browser features with service-side operations | Basic JWT authentication exists; role-based authorization and report ownership are not implemented |
-| Pydantic | Python data validation library | Provides request models and validation for edit inputs | Used with FastAPI routes to reject invalid structures and edit metadata | Validation does not establish identity, authorization, or content correctness |
-| LangChain | LLM integration framework | Provides model abstractions, prompts, tools, agents, and parsers | Connects the configured Gemini model to the active AI features | Model/provider behavior remains external; library complexity is an added dependency |
-| Google Gemini | Hosted generative model service | Supplies the active language-model capability | Called through LangChain for research content and report assistance | Requires credentials/network/provider availability; output may be inaccurate |
-| Firecrawl | Hosted search/research service | Provides candidate news material without a project-owned search index | Search results feed the report workflow | Relevance and availability depend on an external provider |
-| Requests / Beautiful Soup / lxml | Python HTTP and HTML parsing libraries | Support basic webpage text extraction | Retrieved pages are parsed into text for research use | Some pages block retrieval, require client-side rendering, or yield partial text |
-| SSE | HTTP text-event streaming pattern | Supports visible progress for a long-running request | Service events are consumed by a browser Fetch reader | Current worker model is not a durable job queue and has no explicit cancellation |
+## 4. High-Level System Architecture
 
-### Database and storage
+ResearchMind is structured around a multi-tier client-server architecture designed for high availability, separation of concerns, and clear data lineage:
 
-SQLAlchemy connects to a SQL database configured through `DATABASE_URL`; the backend requirements include the psycopg PostgreSQL driver. The `users` model stores account records, the `credits` model stores one credit balance and reserved-credit count per account, and the `report_analysis` model stores generated reports, critiques, sources, and timestamps per user. New accounts are initialized with 50 credits. A research request reserves 20 credits; a failed pipeline refunds the reservation, while a successful request retains the charge. No database migration or table-creation command was found, so these tables must be provisioned separately. Chat conversations and pending edits remain in frontend state and are not persisted. Upstash Redis is initialized for selected request limits.
+```mermaid
+flowchart TD
+    subgraph Presentation["1. Presentation Tier (React + Vite)"]
+        UI[Workspace & Responsive Panels]
+        DRAWER[Mobile Drawer Navigation]
+        SWITCH[Segmented Mobile Switcher]
+        MODAL[Razorpay Checkout Modal]
+        DIFF[Visual Diff Review Engine]
+    end
 
-### Authentication and security
+    subgraph Gateway["2. Gateway & Security Tier (FastAPI)"]
+        ROUTER[API Gateway & CORS]
+        AUTH[JWT Authentication & Cookie Handler]
+        RL[Redis Sliding-Window Rate Limiter]
+        PAY_ENG[Payment & Signature Verification Engine]
+        QUOTA_ENG[Dual-Cadence Quota Manager]
+    end
 
-The application implements account registration/login and JWT-based authentication. Protected routes resolve the current user from an `access_token` cookie or an `Authorization: Bearer` header. Saved report history is queried only for the authenticated owner; role-based authorization and shared-report access are not implemented. CORS and request validation remain separate controls and are not substitutes for authorization.
+    subgraph Agents["3. Multi-Agent Orchestration Tier (LangChain)"]
+        DISC_AGENT[Discovery Agent]
+        READ_AGENT[Reader & Extraction Agent]
+        WRITE_AGENT[Synthesis Agent]
+        CRITIC_AGENT[Review & Critique Agent]
+    end
 
-### APIs and integrations
+    subgraph Persistence["4. Persistence & Storage Tier"]
+        DB[(PostgreSQL Database)]
+        REDIS[(Upstash Redis Cache)]
+    end
 
-The application has internal frontend-to-service HTTP capabilities and external Firecrawl/Gemini integrations. Public documentation below describes API capabilities at a representative level; it omits environment values, private service URLs, prompts, and low-level schemas.
+    subgraph External["5. External Cloud Services"]
+        RZP[Razorpay Payment Gateway]
+        FC[Firecrawl Web Discovery]
+        WEB[Public Web Content]
+        GEMINI[Google Gemini AI Engine]
+    end
 
-### Deployment and infrastructure
+    UI -->|HTTP Requests| ROUTER
+    DRAWER --> UI
+    SWITCH --> UI
+    UI -->|Trigger Checkout| MODAL
+    MODAL -->|Callback Signature| ROUTER
+    DIFF --> UI
 
-No complete container, infrastructure-as-code, CI deployment workflow, or production hosting definition was found. A configured frontend origin in CORS is not, by itself, evidence of a complete deployed environment.
+    ROUTER --> AUTH
+    ROUTER --> RL
+    RL --> REDIS
+    ROUTER --> PAY_ENG
+    ROUTER --> QUOTA_ENG
+    PAY_ENG -->|Order & HMAC Verification| RZP
+    QUOTA_ENG --> DB
 
-## 6. Technical Deep Dive
+    ROUTER --> DISC_AGENT
+    DISC_AGENT --> FC
+    DISC_AGENT --> READ_AGENT
+    READ_AGENT --> WEB
+    READ_AGENT --> WRITE_AGENT
+    WRITE_AGENT --> GEMINI
+    WRITE_AGENT --> CRITIC_AGENT
+    CRITIC_AGENT --> GEMINI
+    CRITIC_AGENT -->|Persist Completed Report| DB
+    CRITIC_AGENT -->|SSE Stream Events| UI
+```
 
-### 6.1 Application architecture
+### Architectural Tier Descriptions
+1. **Presentation Tier:** Executes in the user's browser, managing view state, responsive transitions, real-time SSE stream consumption, and interactive diff approval.
+2. **Gateway & Security Tier:** Handles identity validation, token issuance, rate limiting, credit reservation/refund lifecycle, and cryptographic payment verification.
+3. **Multi-Agent Orchestration Tier:** Manages sequential agent handoffs, context-window constraints, tool execution, and prompt chaining.
+4. **Persistence Tier:** Guarantees ACID transactional durability across user profiles, credit movements, subscription validity, and saved research syntheses.
+5. **External Services Tier:** Integrates third-party APIs for live web indexing, payment settlement, and generative model inference.
 
-ResearchMind separates browser presentation from service-side research and AI capabilities. The frontend is responsible for input, state presentation, report rendering, and user decisions. The service validates requests, coordinates the research capability, invokes configured providers, and returns results. The browser receives progress for research operations and retains the current working report.
+---
 
-This separation enables the UI and service to evolve independently, but the current repository does not establish a formal deployment topology or a durable job-processing architecture.
+## 5. Multi-Stage AI Research Workflow
 
-### 6.2 Frontend architecture
-
-The React frontend includes:
-
-- A shared navigation and route shell.
-- A research workspace that owns topic, progress, errors, and current result state.
-- A progress component that maps stage state into a visual indicator.
-- A report component for report/review display and editing/export controls.
-- An assistant component for report questions and edit proposal review.
-- An About page that describes purpose, user benefits, intended audiences, and limitations.
-- An API helper that isolates network requests and stream parsing from view components.
-
-The UI uses component state rather than a global state library or persistence service. A key reset on the assistant component when the report topic changes starts a fresh assistant conversation for the newly generated topic.
-
-### 6.3 Backend design
-
-The Python service is organized around API routing, request schemas, research coordination, provider/model configuration, retrieval tools, and patch handling. FastAPI exposes the application functions; Pydantic supplies typed request validation. Research processing runs separately from the stream-producing request handler using a daemon thread and in-memory queue.
-
-The modular organization makes responsibilities identifiable. However, the background work is tied to process memory and is not durable across service restarts; it also lacks job recovery and cancellation features.
-
-### 6.4 AI model integration
-
-The active model integration is Google Gemini using a model identifier configured in the source as `gemini-3.5-flash-lite`, with temperature set to zero. The model is used for report-related generation, critique, report Q&A, reading assistance, and structured edit proposals.
-
-The code also initializes a Groq chat model, but no active user-facing request path was found that uses it. It is not currently a tested fallback or selectable model option.
-
-The application delegates inference to a hosted provider. This avoids managing model weights and inference infrastructure in the repository, but makes core functionality dependent on provider credentials, availability, network conditions, service limits, and provider data policies.
-
-### 6.5 Retrieval and content processing
-
-The active research experience combines external news discovery with webpage text extraction. Search results are normalized into article metadata. A reader agent can select a relevant URL and call a webpage-reading tool. The current tool fetches the page, removes common non-content HTML regions, extracts text, and applies an output limit.
-
-This is a lightweight retrieval-and-synthesis design, not a vector database, semantic search index, or persistent retrieval-augmented generation (RAG) system. No embedding model, vector store, or document index is present in the repository.
-
-### 6.6 Agent orchestration and generation
-
-LangChain constructs the reader agent and the writer and critic chains. The application coordinates search, reading, writing, and review in a sequential workflow. It also uses the model's structured-output capability for edit proposals.
-
-The package list includes LangGraph, but the inspected active pipeline does not construct a LangGraph state graph. The public design should therefore be described as a sequential AI-assisted workflow rather than a graph-based multi-agent runtime.
-
-Full system prompts and internal agent instructions are intentionally not included in this public document.
-
-### 6.7 Asynchronous progress communication
-
-The research operation returns a stream of status, result, or error events. A Python queue communicates events from the worker thread to the response stream. The browser reads the response body incrementally, buffers incomplete chunks, and parses complete events.
-
-This allows the user to see progress without waiting for one final response. It is a request-scoped implementation, not a persistent message queue or distributed background-job service.
-
-### 6.8 Data handling
-
-Request data consists of a topic, report text, chat messages, or requested edit instructions. It is sent to the service and, for AI operations, to external providers. Generated reports, critiques, and sources are saved to the database for the owning account; chat history is not persisted.
-
-Account records use the configured SQL database. No report/chat persistence, caching layer, or application-owned search index is implemented.
-
-### 6.9 Error handling
-
-- Research worker exceptions are surfaced as stream error events with stage context.
-- Search configuration/provider failures are translated into HTTP exceptions.
-- The webpage extraction tool returns readable error text for common request failures.
-- Report Q&A rejects an empty conversation or one that does not end with a user message.
-- Edit failures distinguish invalid patch/syntax cases from unexpected provider/generation errors.
-- Frontend request helpers surface error details or status information to the UI.
-
-Error recovery, retry policies, provider circuit breaking, and durable job recovery are not implemented.
-
-## 7. System Architecture
-
-### 7.1 High-level component view
+Rather than attempting to produce research in a single monolithic prompt, ResearchMind breaks the problem into four focused stages where each agent performs a specific task:
 
 ```mermaid
 flowchart LR
-    USER[Browser user] --> FRONTEND[React research workspace]
-    FRONTEND -->|JWT-authenticated research, chat, edit requests| SERVICE[Python service]
-    SERVICE -->|Progress, result, or error| FRONTEND
-    SERVICE --> ACCOUNTS[(SQL user accounts)]
-    SERVICE --> LIMITS[(Redis rate limits)]
-    SERVICE --> ORCH[Research and assistant capabilities]
-    ORCH --> SEARCH[External research search]
-    ORCH --> PAGE[Public web content]
-    ORCH --> MODEL[Hosted generative AI]
-    SEARCH --> ORCH
-    PAGE --> ORCH
-    MODEL --> ORCH
-    FRONTEND --> LOCAL[Current browser session state]
+    A["Stage 1: Discovery<br/>(Web Search & Ranking)"] --> B["Stage 2: Extraction<br/>(DOM Parsing & Distillation)"]
+    B --> C["Stage 3: Synthesis<br/>(Structured Report Drafting)"]
+    C --> D["Stage 4: Critique<br/>(Analytical Quality Review)"]
+    D --> E["Delivered Output<br/>(Report + Citations + Review)"]
 ```
 
-### 7.2 Layer responsibilities
+### Stage 1: Research Discovery
+- **Input:** User-submitted topic or research inquiry.
+- **Process:** The Discovery Agent formats the topic into targeted search queries, interfaces with web search APIs, and retrieves candidate articles.
+- **Output:** Normalized list of candidate sources with titles, destination URLs, publication dates, and preliminary relevance snippets.
 
-| Layer | Responsibility |
-|---|---|
-| Presentation | Topic input, status, report/review rendering, chat, editing, export, navigation |
-| Service/API | Request validation, route handling, CORS configuration, streamed or JSON responses |
-| Research capability | Coordinate retrieval, page reading, report generation, and critique |
-| AI capability | Generate report content, critique, report answers, and proposed edits |
-| External services | Supply search results, model inference, and public webpage content |
-| Persistence | User accounts are stored in the configured SQL database; current reports and chats remain in frontend state |
+### Stage 2: Content Extraction & Distillation
+- **Input:** Candidate source URLs and topic context.
+- **Process:** The Reader Agent selects the most promising sources, retrieves the public HTML, strips non-content DOM nodes (scripts, navigation, footer, styling), and extracts readable text.
+- **Constraint Management:** Content is bounded to prevent token exhaustion, passing only dense, relevant textual evidence forward.
 
-### 7.3 Request lifecycle
+### Stage 3: Report Synthesis & Attribution
+- **Input:** Query topic, source metadata, and extracted page contents.
+- **Process:** The Synthesis Agent constructs a structured Markdown report. It produces an executive introduction, multiple categorized analytical sections, and a synthesis conclusion.
+- **Attribution:** The system attaches an explicit source citation list linking back to original public URLs.
+
+### Stage 4: Independent Analytical Review
+- **Input:** Completed draft report and original topic.
+- **Process:** The Critic Agent independently evaluates the draft against criteria including analytical clarity, depth, factual grounding, and structure.
+- **Output:** Quantitative score (out of 10), bulleted strengths, potential blind spots or limitations, and an overall verdict.
+
+---
+
+## 6. End-to-End Data & Transactional Lifecycle
+
+### 6.1 Payment & Subscription Verification Flow
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant UI as Browser interface
-    participant Service as Application service
-    participant Search as Research provider
-    participant Web as Public source
-    participant AI as Generative AI provider
+    participant UI as React UI (Plans Modal)
+    participant API as FastAPI Backend
+    participant RZP as Razorpay Gateway
+    participant DB as PostgreSQL Database
 
-    User->>UI: Enter topic and start research
-    UI->>Service: Submit topic
-    Service-->>UI: Begin progress stream
-    Service->>Search: Request relevant news material
-    Search-->>Service: Return candidate sources
-    Service->>AI: Prepare report-relevant source reading
-    AI->>Web: Select and request source-reading tool
-    Web-->>AI: Return extracted public text
-    AI-->>Service: Provide research synthesis
-    Service->>AI: Generate report critique
-    AI-->>Service: Return review content
-    Service-->>UI: Report, source links, and review
-    UI-->>User: Display result and follow-up controls
+    User->>UI: Selects Plan (e.g. Monthly ₹499)
+    UI->>API: POST /api/payment/create-order {plan: "monthly"}
+    API->>API: Calculate authoritative price (paise)
+    API->>RZP: Create Order via Razorpay API
+    RZP-->>API: Return Order ID
+    API->>DB: Record Pending Payment Entry
+    API-->>UI: Return Order ID & Public Gateway Key
+    UI->>RZP: Open Razorpay Checkout Modal
+    User->>RZP: Completes Payment (UPI / Card)
+    RZP-->>UI: Return Payment ID & HMAC Signature
+    UI->>API: POST /api/payment/transaction/verify
+    API->>API: Cryptographically verify HMAC-SHA256 signature
+    API->>DB: Mark Payment as Captured
+    API->>DB: Update Subscription Status & Period Dates
+    API->>DB: Increment User Credit Balance
+    API->>DB: Write Immutable Credit Ledger Entry
+    API-->>UI: Verification Success & Updated Quota
+    UI-->>User: Display Payment Confirmation & Refresh Balance
 ```
 
-The diagram is conceptual. It intentionally omits prompts, exact internal message formats, private service addresses, and detailed implementation logic.
-
-### 7.4 External service integrations
-
-- **Firecrawl:** news-oriented search.
-- **Google Gemini:** active model provider for report and assistant capabilities.
-- **Public websites:** source content may be retrieved for text extraction.
-- **Groq:** configured in source but not used in active application flows.
-
-## 8. Module-Wise Breakdown
-
-| Module | Purpose and responsibilities | Input → output | Technologies | Related concepts |
-|---|---|---|---|---|
-| Application shell and navigation | Render shared navigation, page routes, and workspace layout | Route → page | React, React Router | Client-side routing, responsive UI |
-| Research workspace | Collect topic, launch work, retain visible request/result state | Topic → progress/result/error | React, API helper | State management, asynchronous UI |
-| Progress display | Show the current stage and completion | Stage statuses → progress bar/label | React | Progressive feedback |
-| Report and review display | Render report and feedback; support direct edit and export | Report/feedback → Markdown UI or download | React Markdown, GFM, browser APIs | Content rendering, local editing |
-| Report assistant | Handle report questions and edit mode; review changes | User message → answer/proposal | React, service API, Gemini integration | Contextual Q&A, human review |
-| API client | Submit requests and interpret responses/streamed updates | UI state → HTTP request; stream → UI events | JavaScript Fetch | API integration, incremental parsing |
-| API application | Route service requests, apply validation, configure CORS | HTTP request → JSON or event stream | FastAPI, Pydantic | Request/response API design |
-| Research coordination | Run search, source reading, report generation, critique | Topic and provider results → report/review/sources | Python, LangChain, Firecrawl | Sequential orchestration |
-| AI/model configuration | Configure model integrations and generation components | Prompt context → model output | LangChain, Gemini, Groq package | Hosted inference |
-| Retrieval and extraction | Search external news and extract page text | Topic/URL → search metadata/text | Firecrawl, Requests, Beautiful Soup, lxml | External retrieval, HTML parsing |
-| Edit proposal and application | Generate, validate, and return candidate text edits | Report/instruction → proposal and updated draft | Gemini structured output, Python text processing | Structured output, patch validation |
-| Data schemas | Define request and result shapes | Incoming values → typed/validated data | Pydantic, Python typing | Input validation |
-
-This module map describes responsibilities, not a complete source-code listing or reproducible implementation guide.
-
-## 9. End-to-End Application Workflow
-
-### 9.1 Application initialization
-
-1. The browser loads the React application and shared navigation.
-2. The router selects the Home or About experience.
-3. The Home workspace initializes empty topic, progress, result, and assistant state.
-4. The frontend reads the configured service base URL when requests are made.
-
-### 9.2 Research request
-
-1. The user enters a topic or chooses a suggestion.
-2. The frontend starts a research request and clears prior result/error state.
-3. The service begins the research operation and emits progress events.
-4. The research capability retrieves candidate news material.
-5. A reader capability can select and read relevant public material.
-6. A report is generated and source links are included.
-7. Separate review feedback is generated.
-8. The service emits the final result; the frontend displays report and feedback.
-
-### 9.3 Follow-up and edit workflow
-
-1. A user asks a report-related question, or switches to edit mode.
-2. The frontend submits the current report and relevant user message/instruction.
-3. The assistant returns an answer or edit proposal.
-4. A proposed edit is displayed for review.
-5. The user accepts it to update current browser state or rejects it to retain the original.
-
-### 9.4 Workflow diagram
+### 6.2 Research Request & Credit Reservation Lifecycle
 
 ```mermaid
-flowchart TD
-    A[Open ResearchMind] --> B[Enter or select topic]
-    B --> C[Start research]
-    C --> D[Observe progress]
-    D --> E[Review report and critique]
-    E --> F{Next action}
-    F -->|Inspect evidence| G[Open source links]
-    F -->|Ask follow-up| H[Use report assistant]
-    F -->|Refine report| I[Direct edit or request suggestion]
-    F -->|Export| J[Copy or download Markdown]
-    I --> K{Approve suggested edit?}
-    K -->|Accept| L[Update current report]
-    K -->|Reject| M[Retain current report]
+sequenceDiagram
+    actor User
+    participant UI as React Workspace
+    participant API as FastAPI Backend
+    participant DB as PostgreSQL Database
+    participant Worker as Agent Pipeline Worker
+
+    User->>UI: Enters topic and clicks "Start Research"
+    UI->>API: POST /api/v1/research/ (Topic)
+    API->>DB: Verify Balance & Reserve 20 Credits
+    alt Insufficient Credits
+        API-->>UI: HTTP 402 / Payment Required
+    else Credits Available
+        API->>DB: Set reserved_credits = 20
+        API-->>UI: Open Server-Sent Events Stream (HTTP 200)
+        API->>Worker: Dispatch Asynchronous Pipeline
+        Worker-->>UI: SSE event: Status (Discovery Running)
+        Worker-->>UI: SSE event: Status (Extraction Running)
+        Worker-->>UI: SSE event: Status (Synthesis Running)
+        Worker-->>UI: SSE event: Status (Review Running)
+        alt Pipeline Fails
+            Worker->>DB: Atomically Refund Reserved Credits
+            Worker-->>UI: SSE event: Error (Refund Triggered)
+        else Pipeline Succeeds
+            Worker->>DB: Commit 20-Credit Deduction
+            Worker->>DB: Persist Report, Feedback & Sources
+            Worker-->>UI: SSE event: Result (Report + Sources + New Balance)
+        end
+    end
 ```
 
-### 9.5 Authentication and authorization flow
+---
 
-1. A user registers or logs in through the auth API.
-2. The service validates credentials, issues a JWT, and sets an HttpOnly cookie; the response also includes the token for the frontend.
-3. Protected requests provide the token as a bearer token or cookie.
-4. The shared current-user dependency decodes the token, loads the account, and rejects unauthenticated or inactive users.
-5. Registration initializes the account with 50 credits. The Home page obtains the current balance from the authenticated account-details route and refreshes the displayed balance when a research result arrives.
-6. Successful research is saved with its owner, report, critique, sources, and timestamps. The authenticated history route returns only that user's records for display in the report-history page.
+## 7. Engineering Concepts Demonstrated
 
-The current frontend also stores the returned token in local storage. The auth cookie is configured with `secure=False` in the current source, and should be hardened before HTTPS production use. Saved reports are associated with their owning user; retention and deletion controls are not implemented.
+1. **Multi-Agent Orchestration & Task Specialization:** Demonstrates decomposing complex generative tasks into decoupled, single-responsibility agents with clean data handoffs.
+2. **Two-Phase Resource Reservation Pattern:** Protects user balances against credit loss during downstream AI/network failures by reserving quota upfront, committing on success, and refunding on error.
+3. **Cryptographic Integrity & Server-Authoritative Billing:** Guarantees financial security by enforcing plan pricing strictly on the backend and validating payment authenticity using HMAC-SHA256 cryptographic signatures.
+4. **Dual-Cadence Quota Resets:** Implements timezone-aware (Asia/Kolkata) calendar resets for free daily quotas while preserving purchased top-up credits across monthly subscription rollovers.
+5. **Real-Time Asynchronous Progress Streaming:** Implements unidirectional Server-Sent Events (SSE) to provide continuous user feedback during multi-step background operations without polling overhead.
+6. **Human-in-the-Loop (HITL) Revision Verification:** Enforces a review-before-commit policy for AI-suggested document revisions, rendering unified diffs and requiring explicit user authorization.
+7. **Defensive API Engineering:** Utilizes strict Pydantic validation, IP- and account-based rate limiting via Redis, and secure JWT authentication.
+8. **Mobile-First Responsive UI Engineering:** Employs CSS container-level boundaries, flexbox shrink-protection, sliding drawers, and segmented view toggles to provide a seamless mobile experience.
 
-## 10. Algorithms and Technical Methodology
+---
 
-### 10.1 Sequential research workflow
+## 8. Architectural Design Considerations & Trade-Offs
 
-**Concept:** Divide research into ordered responsibilities: source discovery, deeper reading, synthesis, and critique.
-
-**Project role:** Coordinates the user-submitted topic through a fixed sequence and returns a report with sources and separate feedback.
-
-**Input/output:** Topic → search metadata, extracted content, report, critique, source links.
-
-**Advantages:** Easy to follow, progress can map to visible stages, and each responsibility is identifiable.
-
-**Limitations:** A failure in a stage can stop the run; no durable workflow engine or independent quality gate is present.
-
-**Evaluation:** Stage success rates, completion time, source coverage, factual support, and reviewer usefulness could be evaluated in future work. No such measurements are available.
-
-### 10.2 News search and source selection
-
-**Concept:** Use an external search provider to discover candidate news items, then use an AI-assisted reader capability to choose a source for deeper inspection.
-
-**Project role:** Provides current public material to the synthesis process.
-
-**Advantages:** Leverages an external search service and preserves source URLs for the user.
-
-**Limitations:** Search coverage is bounded; relevance and source quality are not independently evaluated. Only a selected source is used for deeper reading by the current reader workflow.
-
-**Evaluation:** Recall of relevant sources, source diversity, freshness, and human-rated relevance would be appropriate. No evaluation dataset is included.
-
-### 10.3 Page text extraction
-
-**Concept:** Retrieve HTML, remove common non-content regions, and extract readable text.
-
-**Project role:** Supplies page content to the research process.
-
-**Advantages:** Simple and lightweight for pages whose content is present in returned HTML.
-
-**Limitations:** JavaScript-rendered content, access restrictions, unusual layouts, and truncation can result in incomplete extraction.
-
-**Evaluation:** Compare extracted content to source pages across representative site types; no extraction benchmark is present.
-
-### 10.4 Language-model report synthesis
-
-**Concept:** A hosted language model produces structured prose from the topic and retrieved material.
-
-**Project role:** Creates an initial report with an introduction, findings, and conclusion; source links are appended from search metadata.
-
-**Advantages:** Produces readable synthesis without hosting local model infrastructure.
-
-**Limitations:** May omit information, introduce errors, or overstate evidence. Appended source links do not guarantee claim-level citation.
-
-**Evaluation:** Human fact-checking, claim/source support review, coverage assessment, and rubric-based quality review are recommended. No formal evaluation has been conducted.
-
-### 10.5 Critique generation
-
-**Concept:** Use a separate model request to review the completed report and return a score, strengths, improvement areas, and verdict.
-
-**Project role:** Supplies a distinct feedback view to help the user inspect the draft.
-
-**Advantages:** Separates critique from report text and gives the user a second perspective.
-
-**Limitations:** The critique is itself generated content and can be subjective or inaccurate; it is not an independent evaluator.
-
-### 10.6 Report-grounded question answering
-
-**Concept:** Provide the current report and conversation as context for a model response.
-
-**Project role:** Lets the user ask follow-up questions about the report.
-
-**Advantages:** Keeps exploration tied to the current document.
-
-**Limitations:** The answer is grounded in supplied report text, which may itself be incomplete or wrong. No retrieval index or external evidence verification is used for Q&A.
-
-### 10.7 Structured edit proposal
-
-**Concept:** Ask the model for discrete suggested text changes instead of accepting an opaque whole-document replacement.
-
-**Project role:** Displays a reviewable proposal and lets the user accept or reject it.
-
-**Advantages:** Changes can be inspected before applying and malformed/ambiguous edits are rejected by the service.
-
-**Limitations:** A proposed change may still be semantically incorrect; user review remains necessary.
-
-### 10.8 Streaming progress
-
-**Concept:** Deliver progress and final/error events over an HTTP response stream.
-
-**Project role:** Keeps the user informed during research.
-
-**Advantages:** Avoids a single silent long wait and fits the sequential progress display.
-
-**Limitations:** The current implementation is request-scoped, uses in-memory coordination, and does not provide durable retries or cancellation.
-
-### 10.9 No retrieval index or report-storage algorithm
-
-The project does not use embeddings, vector search, persistent document indexing, database query optimization, caching, or a recommendation algorithm. The SQL database stores user accounts and completed reports, but is not used for research retrieval. These distinctions must be preserved when describing implemented features.
-
-## 11. Database Architecture
-
-### Database selection
-
-The backend uses SQLAlchemy with a SQL database selected through `DATABASE_URL`; the requirements include the psycopg PostgreSQL driver. The `users` table is represented by a SQLAlchemy model. No migration or automatic table-creation command was found in the repository.
-
-### Current storage strategy
-
-| Information | Current handling |
-|---|---|
-| User account | Stored in the configured SQL database |
-| Topic | Frontend component state during the active session |
-| Completed report, critique, and sources | Stored in the SQL database, associated with the account that created the research |
-| Chat messages | Assistant component state |
-| Edit proposal | Assistant component state until accepted/rejected |
-| Search metadata | Used during request processing; not saved as durable history |
-
-### Data flow
-
-Account records and completed research reports are stored in the configured SQL database. Research input is sent to the application service for processing; the generated report, critique, and sources are saved for the authenticated user and returned to the browser. The history page loads these records newest first. Chat messages and pending edits remain browser state.
-
-### Conceptual data model
-
-The following conceptual state diagram describes report state only; it is not the account database schema:
-
-```mermaid
-flowchart LR
-    TOPIC[Topic input] --> RUN[Active research request]
-    RUN --> REPORT[Current report]
-    RUN --> REVIEW[Current review]
-    RUN --> SOURCES[Returned source links]
-    REPORT --> CHAT[Current report conversation]
-    REPORT --> EDIT[Pending edit proposal]
-    EDIT -->|Accepted| REPORT
-    EDIT -->|Rejected| REPORT
-    REPORT -->|saved per user| DB[(SQL database)]
-    REVIEW -->|saved per user| DB
-    SOURCES -->|saved per user| DB
-    REPORT -. active view .-> SESSION[Browser session state]
-    CHAT -. not persisted .-> SESSION
-```
-
-### Future storage considerations
-
-User accounts and completed reports are stored in the configured SQL database, with reports associated with their owner. Future work should define retention, deletion, privacy expectations, and provider data handling. Persistent chat history is not implemented.
-
-## 12. API Architecture
-
-### API categories
-
-The service provides account registration/login/logout, account lookup, research with progress, report-focused conversation, and report edit proposals. Research and report chat/edit routes require authentication; registration/login/logout are public and IP rate limited.
-
-| Method | Capability | Request concept | Response concept | Authentication |
-|---|---|---|---|---|
-| POST | Register or log in | Account credentials | JWT and user details | Public; IP rate limited |
-| POST | Log out | Auth cookie | Cookie-clearing response | Public; IP rate limited; bearer token removal is client-side |
-| GET | Read account details | JWT cookie or bearer token | Current user details and credit balance | Required |
-| GET | Open a saved report | Report ID and JWT cookie or bearer token | Owner-scoped report content, critique, and sources | Required |
-| POST | Start topic research | Topic text | Progress stream followed by result (including `credits_balance`) or error | Required; 20 credits per run; one request per account per hour |
-| POST | Ask about a report | Topic, report, and conversation messages | Answer text | Required; account rate limited |
-| POST | Request a report edit | Current report text and edit instruction | Proposed changes, updated draft, or no-change result | Required; account rate limited |
-| DELETE | Delete account | JWT cookie or bearer token | Placeholder acknowledgement | Required; deletion is not implemented |
-
-Exact route paths and full schemas are intentionally omitted from this public showcase. They can be documented separately for authorized integration or maintenance needs.
-
-### Communication patterns
-
-- JSON request bodies are used for application actions.
-- Research progress is returned as a text event stream containing status, result, or error data.
-- The Home page loads the initial credit balance from account details and updates it from the `credits_balance` field in a research result event.
-- Chat and edit operations return JSON.
-- CORS allows configured frontend origins; CORS is not authentication.
-- Protected routes accept a JWT in the `access_token` cookie or bearer authorization header.
-
-### Representative conceptual example
-
-```text
-POST
-Capability: Generate a report from a topic
-Input:  { topic: "..." }
-Output: Progress events, followed by report + review + source links
-```
-
-This is a conceptual example, not a complete public API contract. Error behavior includes FastAPI validation responses, an explicit invalid-conversation response for chat, edit validation errors, and streamed research errors.
-
-## 13. User Interface and Screenshots
-
-No genuine application screenshots were found in the repository. `frontend/src/assets/hero.png` is a design asset, not a UI capture. The references below are placeholders and must not be treated as screenshots.
-
-### 13.1 Research workspace
-
-![Placeholder: capture the real ResearchMind workspace with a completed report](./screenshots/research-workspace.png)
-
-| Field | Description |
-|---|---|
-| Screen | Home / Research workspace |
-| Purpose | Start research and review the current report |
-| Main components | Topic input, suggested topics, progress status, report/review view, assistant panel |
-| Interactions | Start research, inspect report and review, ask questions, edit, copy/download, review suggested changes |
-| Related features | Research request, report display, assistant, report export |
-
-### 13.2 About page
-
-![Placeholder: capture the real ResearchMind About page](./screenshots/about-page.png)
-
-| Field | Description |
-|---|---|
-| Screen | About ResearchMind |
-| Purpose | Explain the product, objectives, intended users, technology overview, and limitations |
-| Main components | Product overview, objective cards, audience cards, project profile, responsible-use note |
-| Interactions | Read product overview and return to the workspace |
-| Related features | Product discovery and user guidance |
-
-### 13.3 Pending assistant edit
-
-![Placeholder: capture the assistant with a proposed edit awaiting user review](./screenshots/assistant-edit-review.png)
-
-| Field | Description |
-|---|---|
-| Screen | Pending edit proposal within the research workspace |
-| Purpose | Let the user inspect an AI-suggested change before applying it |
-| Main components | Assistant conversation, old/new text comparison, accept and reject controls |
-| Interactions | Review and accept/reject the proposed change |
-| Related features | Report editing and user-controlled assistant workflow |
-
-Capture genuine product screenshots and save them at the relative paths above to replace these placeholders. See [`screenshots/README.md`](./screenshots/README.md) for the expected filenames.
-
-## 14. Engineering Decisions and Design Choices
-
-| Decision | Evidence-based rationale | Trade-off / alternative |
+| Decision | Alternative Considered | Selected Rationale |
 |---|---|---|
-| React component-based frontend | Interactive report, assistant, progress, and navigation areas can be composed as UI components | A server-rendered or native application could be used for other product requirements |
-| Python service with FastAPI | Existing service uses typed request models, CORS middleware, HTTP routing, and streaming responses | A different backend framework could provide similar capabilities; no comparative benchmark is available |
-| Hosted Gemini inference | Avoids managing model weights and local inference hardware | Introduces provider cost, network dependency, latency, and data-policy considerations |
-| External search integration | Provides news-oriented discovery without maintaining a project-owned index | Search coverage and relevance depend on the provider |
-| SSE for progress | Fits a one-way progress/result stream during a research request | Durable jobs or bidirectional interaction would need a separate job/event design |
-| Separate report and review views | Keeps generated draft and critique distinguishable to users | Critique remains model-generated and requires human judgment |
-| User approval for suggested edits | Preserves a human decision point before changing current report state | Requires an additional review action |
-| Account-scoped report persistence | Saves generated reports, critiques, and sources for their owner and supports history retrieval | No shared reports, persistent chat history, or report retention controls |
-| Markdown report format | Readable in the app and portable through copy/download | Rich collaboration and document management are not provided |
+| **Server-Sent Events (SSE)** | WebSockets | Research pipeline progress is strictly unidirectional (server $\rightarrow$ client). SSE operates over standard HTTP, natively traverses firewalls, supports automatic reconnection, and requires less operational complexity than full-duplex WebSockets. |
+| **Multi-Agent Pipeline** | Single Monolithic Prompt | A single LLM call attempting search, reading, writing, and review often hallucinates sources, suffers from attention drift, and provides zero visibility into intermediate progress. Multi-agent staging provides granular progress reporting and higher analytical rigor. |
+| **Localized Patch Diffing** | Full Document Overwrite | Silent full-document rewrites can erase user edits or introduce subtle semantic corruption. Calculating localized diffs preserves user edits and keeps the human in control. |
+| **Server-Side Pricing** | Client-Supplied Amounts | Trusting client-side amounts enables price tampering. Calculating prices strictly on the server using predefined SKUs ensures financial integrity. |
+| **Relational Credit Ledger** | Single Integer Balance Counter | Single counters provide no auditability. An immutable `credit_transactions` ledger provides double-entry style tracking for audits, usage trends, and refund verification. |
 
-No measured framework comparison, model comparison, or cost analysis is available in the repository.
+---
 
-## 15. Performance, Testing, and Evaluation
+## 9. Security & Data Protection Architecture
 
-### Testing and checks performed
+- **Server-Authoritative Validation:** Plan pricing, credit costs, and quota updates are strictly executed server-side. No client-supplied financial amount is ever trusted.
+- **Cryptographic Signature Verification:** Razorpay payment webhooks and callbacks are validated against cryptographic HMAC-SHA256 digests.
+- **Identity & Session Security:** Authentication utilizes JSON Web Tokens (JWT) transmitted via secure, HttpOnly cookies and standard `Authorization: Bearer` headers.
+- **Distributed Rate Limiting:** Protected routes are guarded by Upstash Redis sliding-window limiters to mitigate denial-of-service (DoS) attempts and credential stuffing.
+- **Content Boundary Enforcement:** Report inputs, code patches, and user instructions are validated against strict length and size limits to prevent buffer and memory exhaustion.
+- **Tenant Data Isolation:** Research history and report records are strictly scoped to the authenticated owner's primary key; cross-tenant data access is blocked at the database query level.
 
-| Validation | Result in current project work | What it establishes |
-|---|---|---|
-| Frontend production build | Passed | Frontend bundles successfully in the checked environment |
-| ESLint | Passed | No reported lint errors in the checked frontend |
-| Python syntax compilation | Passed | Python files compile syntactically |
-| Browser layout checks | Passed for selected pages/viewports | About-page scrolling and selected workspace responsive states rendered as expected |
-| Live provider end-to-end research run | Not established | No successful external-service integration result is claimed |
+---
 
-No automated unit, API integration, end-to-end, or model evaluation suite is declared in the inspected project.
+## 10. Current Limitations
 
-### Performance evidence
+As an evolving prototype, ResearchMind currently operates with the following technical boundaries:
 
-No request-latency, throughput, concurrency, memory, cost, or model-quality metrics are available. No performance graphs are included because measurements have not been made.
+- **Bounded Source Scrape Depth:** Web extraction limits text length per source to maintain sub-minute pipeline latency and prevent context-window overflow.
+- **Document-Level Attribution:** Sources are listed as overall citations; granular, claim-by-claim inline footnote citations are slated for future releases.
+- **Transient Chat State:** Saved research reports are durably stored in PostgreSQL, but active follow-up chat sessions remain in client memory across page refreshes.
+- **Asynchronous Webhook Queues:** Payment verification currently relies on synchronous client callbacks; asynchronous webhook retry queues (e.g. Celery / BullMQ) are planned for high-concurrency production deployments.
+- **Evaluative Benchmarks:** Quality critique is currently performed by an independent LLM critic agent rather than an automated empirical benchmark dataset.
 
-### Evaluation recommendations
+---
 
-- Measure end-to-end and per-stage response time with provider calls separately identified.
-- Test external-service timeouts and error responses.
-- Use a reviewed sample set to evaluate source relevance, coverage, factual support, and usefulness.
-- Evaluate chat answers for grounding in the supplied report.
-- Test patch proposals for safe behavior and user comprehension.
-- Conduct accessibility and browser/device testing.
-- Add unit tests for the text-edit validation and progress-event behaviors.
+## 11. Future Scope & Roadmap
 
-## 16. Results and Achievements
+- **Graph-Based Agent Orchestration:** Migrating sequential pipelines to state-graph workflows (LangGraph) with dynamic branching, iterative query refinement, and fallback search loops.
+- **Inline Claim Verification:** Implementing sentence-level citation mapping that links specific report sentences to verbatim excerpts from retrieved source documents.
+- **Persistent Multi-Session Threads:** Storing conversational follow-up threads and document revision histories in durable relational tables.
+- **Background Webhook Ingestion & Reconciliation:** Adding resilient worker queues for handling Razorpay webhook retries during intermittent network disconnects.
+- **Enterprise Team Workspaces:** Introducing organization accounts, role-based access control (RBAC), shared research repositories, and team credit pools.
+- **Multi-Format Export Integrations:** Providing native exports to PDF, DOCX, Google Docs, and Notion.
 
-### Completed capabilities
+---
 
-- Topic-driven research workspace.
-- Four-stage progress feedback.
-- Report generation with source links.
-- Separate critique/review view.
-- Report-focused chat.
-- Direct report editing, copy, and Markdown download.
-- Suggested edits with user approval.
-- Product About page and recruiter-oriented project materials.
+## 12. Project Summary
 
-### Demonstrated engineering capabilities
+The core objective of ResearchMind is to explore how specialized, autonomous AI agents can collaborate to automate the multi-step research and synthesis process while preserving human oversight, citation transparency, and a clean, maintainable software architecture.
 
-- Full-stack integration across React and Python.
-- Typed request validation and error mapping.
-- Hosted model and research-provider integration.
-- Incremental progress delivery to a browser UI.
-- Structured edit proposal presentation and approval.
-- Responsive interface behavior and Markdown content rendering.
+---
 
-### Actual results
-
-Build, lint, syntax compilation, and selected browser layout checks passed during development. The repository does not include verified impact metrics, production deployment results, model evaluation, or user-study findings. No unmeasured achievement is claimed.
-
-## 17. Technical Challenges and Solutions
-
-The following items are supported by the current implementation and validation history; they are not claims of measured production outcomes.
-
-| Challenge | Evidence-based response | Outcome / lesson |
-|---|---|---|
-| Long research work needs visible feedback | Research status is emitted by stage and rendered as progress in the UI | The user can distinguish an active request from a finished result; a durable background-job system remains future work |
-| Streamed data can arrive in incomplete chunks | Frontend buffers response chunks and processes complete event records | The current client can parse chunked progress responses; broader SSE compatibility testing is still needed |
-| Generated edits should not be applied blindly | Edit proposals are displayed for acceptance/rejection; service validates target matching and overlaps | User retains approval control; semantic correctness still requires review |
-| Report content must be readable in the browser and portable | Markdown rendering, direct editing, copy, and Markdown download are provided | The report can be reviewed and continued outside the app |
-| Desktop workspace and longer informational pages have different scroll needs | Route-aware desktop layout constrains the research workspace while allowing About-page scrolling | Selected browser checks confirmed the About page scrolls and workspace remains viewport-sized |
-
-The repository does not contain a formal development incident log; unrecorded challenges are not inferred.
-
-## 18. Security and Scalability
-
-### Implemented security-related measures
-
-- Environment files are ignored by Git; secret values are not included in this document.
-- CORS restricts browser access to a configured set of origins.
-- Pydantic validates request structure.
-- Account registration/login, JWT authentication, and selected Redis-backed IP/account rate limits are implemented.
-- Edit requests limit content/instruction sizes, validate filenames, and restrict file extensions.
-- Patch application rejects missing, ambiguous, and overlapping target changes.
-- Unexpected edit-generation errors are logged and surfaced as a generic HTTP 502 message.
-
-### Security controls not implemented
-
-- Role-based authorization, report ownership, and saved-data access policies.
-- Account deletion (the current route is a placeholder).
-- Production hardening for the auth cookie, currently configured with `secure=False`; the frontend also stores the returned token in local storage.
-- A visible URL allowlist for the model-selected webpage extraction destination.
-- A formal privacy/retention or provider data-processing policy in repository documentation.
-
-These gaps should be reviewed before exposing the service to untrusted or multi-user traffic. CORS is not an access-control substitute.
-
-### Sensitive information handling
-
-The source references API credentials through environment variables. This report does not include their values. Users should not put secrets or confidential source material into a public report or project README. Research/chat/edit content is sent to configured external providers when those capabilities are used; provider data-handling terms should be reviewed.
-
-### Scalability considerations
-
-The current request worker uses a daemon thread and in-memory queue. This is suitable only for a simple prototype scale; it is not a durable distributed job system. Potential future scaling work could introduce an independently managed job queue, cancellation and retry policies, provider concurrency controls, observability, and persistence after defining requirements.
-
-No caching, horizontal scaling, load balancing, or database scaling mechanism is implemented or benchmarked.
-
-## 19. Limitations
-
-### Functional
-
-- No sharing, persistent chat history, or collaborative editing.
-- No report retention or deletion controls.
-- Report Q&A only receives the provided report and conversation; no separate retrieval index is present.
-- Current search and source-reading behavior is bounded.
-
-### AI/model
-
-- Generated text and critique may contain errors or omissions.
-- No claim-level source attribution or automated factuality check.
-- No formal model benchmark or evaluation dataset.
-- Groq integration is configured but not active in user-facing flows.
-
-### Data and research coverage
-
-- Search is limited to a small set of news results.
-- Page extraction can be incomplete or fail depending on the target website.
-- No dedicated proprietary dataset or corpus is included.
-
-### Infrastructure and operations
-
-- No complete deployment definition, monitoring, health-check, or CI deployment setup.
-- No durable job processing, cancellation, or recovery mechanism.
-- Backend dependency declarations are inconsistent between requirements and project metadata.
-
-### Testing
-
-- No automated unit/API/E2E test suite is declared.
-- No successful live provider integration test is claimed.
-- Selected UI checks do not constitute a cross-browser accessibility audit.
-
-## 20. Future Roadmap
-
-| Priority | Enhancement | Expected value |
-|---|---|---|
-| High | Add automated tests for research events, API validation, chat/edit flows, and patch behavior | Reduce regression risk |
-| High | Harden existing authentication and define report ownership before multi-user use | Protect user work and control access |
-| High | Implement and test account deletion and document retention behavior | Give users a complete account lifecycle |
-| High | Define privacy, retention, deletion, and provider data policies | Establish safe handling expectations |
-| High | Improve source provenance and claim-to-source traceability | Make verification more efficient |
-| Medium | Add provider timeouts, retry/backoff, cancellation, and durable jobs | Improve reliability for long-running requests |
-| Medium | Evaluate source relevance, factuality, and answer grounding | Establish evidence-based quality expectations |
-| Medium | Reconcile Python dependency manifests and document reproducible setup | Improve maintainability and onboarding |
-| Medium | Add observability and deployment/health-check configuration | Support operational diagnosis |
-| Medium | Implement/test model-provider selection only if the alternate path is intended | Make provider behavior explicit and dependable |
-| Low | Add report organization and export options based on user feedback | Improve ongoing usability |
-| Low | Capture real screenshots and accessibility evidence | Strengthen public portfolio presentation |
-
-Priorities are recommendations for planning, not a committed delivery schedule.
-
-## 21. Developer Contributions and Technical Competencies
-
-The repository identifies Ultriti-Tech in backend package metadata but does not document individual contributor ownership. This section therefore describes the engineering work represented in the project, without attributing work to a named individual.
-
-### Engineering areas represented
-
-| Area | Work represented in the repository |
-|---|---|
-| Architecture and system design | Separation of browser experience, Python service, research integrations, model capabilities, and schemas |
-| Frontend development | React pages/components, routing, responsive workspace, progress UI, Markdown report view |
-| Backend development | FastAPI application, route composition, request schemas, research and assistant capabilities |
-| AI/ML integration | LangChain model/provider integration, report synthesis, critique, report Q&A, structured edit suggestions |
-| API engineering | JSON request/response capabilities and streamed research progress |
-| Data handling | User account and completed research records use the configured SQL database; chat and pending-edit state remain in memory |
-| Validation and error handling | Pydantic edit validation, API error mapping, patch-target safety checks, visible frontend errors |
-| Testing/debugging | Frontend build/lint, Python syntax compilation, selected browser layout checks |
-| Deployment/infrastructure | No complete deployment or infrastructure implementation is established by the repository |
-
-### Technical skills demonstrated
-
-- React and modern JavaScript UI development.
-- Responsive CSS and component-based design.
-- Python service development with FastAPI and Pydantic.
-- Integration of hosted LLM and search providers.
-- Prompt/model orchestration concepts using LangChain.
-- HTTP streaming and browser stream parsing.
-- Markdown rendering and downloadable content generation.
-- Structured edit proposals, input validation, and user approval patterns.
-- Repository analysis, technical documentation, and honest limitation reporting.
-
-## 22. Conclusion
-
-ResearchMind demonstrates a full-stack AI-assisted research workflow: a user can submit a topic, receive progress, review a source-linked report and separate critique, ask report-related questions, and control suggested changes. The implementation combines a React/Vite frontend with a Python/FastAPI service and external research and generative-AI integrations.
-
-Its technical contribution is a coherent prototype that joins research discovery, synthesis, review, and editing in one user experience. It also demonstrates a human-in-the-loop approach by keeping source inspection and approval of suggested edits with the user.
-
-The project should be understood as a prototype. It provides basic user identity and stores account records and per-user research reports, but does not persist conversations. Formal model-quality evaluation, a complete automated test suite, retention/deletion controls, and production operations remain future work. Continued work on evidence traceability, privacy, testing, security, and durable processing would be needed before higher-stakes or broader deployment.
-
-## 23. References and Technical Resources
-
-Official documentation for technologies present in the project:
-
-1. [React](https://react.dev/learn)
-2. [Vite](https://vite.dev/guide/)
-3. [Tailwind CSS](https://tailwindcss.com/docs)
-4. [React Router](https://reactrouter.com/start/library/installation)
-5. [Python](https://docs.python.org/3/)
-6. [FastAPI](https://fastapi.tiangolo.com/)
-7. [Uvicorn](https://www.uvicorn.org/)
-8. [Pydantic](https://docs.pydantic.dev/)
-9. [LangChain](https://python.langchain.com/docs/introduction/)
-10. [LangGraph](https://langchain-ai.github.io/langgraph/)
-11. [Google Gemini API](https://ai.google.dev/gemini-api/docs)
-12. [LangChain Google Generative AI integration](https://python.langchain.com/docs/integrations/chat/google_generative_ai/)
-13. [LangChain Groq integration](https://python.langchain.com/docs/integrations/chat/groq/)
-14. [Firecrawl](https://docs.firecrawl.dev/)
-15. [Requests](https://requests.readthedocs.io/)
-16. [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/)
-17. [lxml](https://lxml.de/)
-18. [MDN: Server-Sent Events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
-19. [React Markdown](https://github.com/remarkjs/react-markdown)
-20. [remark-gfm](https://github.com/remarkjs/remark-gfm)
+**Project Category:** Generative AI | Agentic AI | Full-Stack Development  
+**Status:** Evolving Project

@@ -16,6 +16,7 @@ import PageNotFound from "./Pages/PageNotFound/PageNotFound";
 import ReportHistory from "./Pages/ReportHistory/ReportHistory";
 import ResultPage from "./Pages/HomePage/ResultPage";
 import Demopayment from "./Pages/Payment/demopayment";
+import Demotextupdate from "./Components/Demotextupdate";
 
 function AppLayout() {
   const { pathname } = useLocation();
@@ -62,6 +63,15 @@ function AppLayout() {
               </UserProtectedWrapper>
             }
           />
+          <Route
+            path="/reportupdate"
+            element={
+              <UserProtectedWrapper>
+                <Demotextupdate />
+              </UserProtectedWrapper>
+            }
+          />
+
           <Route
             path="/reportHistory/:reportId"
             element={

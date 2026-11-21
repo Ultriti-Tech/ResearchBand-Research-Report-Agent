@@ -6,14 +6,21 @@ import {
   downloadWord,
   printReport,
 } from "../utils/reportExport";
+import { updateReportInformation } from "../api";
 
-export default function ReportView({ topic, report, feedback, onReportChange }) {
+export default function ReportView({
+  topic,
+  report,
+  feedback,
+  onReportChange,
+}) {
   const [tab, setTab] = useState("report");
   const [copied, setCopied] = useState(false);
   const [draftReport, setDraftReport] = useState(report);
   const [isEditing, setIsEditing] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportError, setExportError] = useState("");
+  const [isSaved, setIsSaved] = useState(true);
   const exportMenuRef = useRef(null);
   const score = feedback?.match(/(\d+(?:\.\d+)?)\s*\/\s*10/)?.[1];
 
@@ -99,12 +106,35 @@ export default function ReportView({ topic, report, feedback, onReportChange }) 
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => {
+                // setDraftReport(report);
+                if (isSaved == false) {
+                  console.log('report', report)
+                  updateReportInformation(
+                    (topic = topic),
+                    (report = report),
+                  );
+                }
+                setIsSaved(true);
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
+                isSaved
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]"
+                  : "border-[var(--border-default)] bg-red-700 text-[var(--text-secondary)] hover:border-[var(--border-focus)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              {isSaved ? "saved" : "save"}
+            </button>
+            <button
+              onClick={() => {
                 if (isEditing) {
                   onReportChange?.(draftReport);
+
                   setIsEditing(false);
+                  setIsSaved(false)
                 } else {
                   setDraftReport(report);
                   setIsEditing(true);
+                  setIsSaved(false)
                 }
               }}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition ${
@@ -120,8 +150,20 @@ export default function ReportView({ topic, report, feedback, onReportChange }) 
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-focus)] hover:text-[var(--text-primary)]"
             >
               <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                <rect x="4.5" y="4.5" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                <path d="M9.5 4.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v5A1.5 1.5 0 0 0 3 9.5h1.5" stroke="currentColor" strokeWidth="1.2"/>
+                <rect
+                  x="4.5"
+                  y="4.5"
+                  width="7"
+                  height="7"
+                  rx="1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+                <path
+                  d="M9.5 4.5V3a1.5 1.5 0 0 0-1.5-1.5H3A1.5 1.5 0 0 0 1.5 3v5A1.5 1.5 0 0 0 3 9.5h1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
               </svg>
               <span>{copied ? "Copied!" : "Copy"}</span>
             </button>
@@ -138,7 +180,13 @@ export default function ReportView({ topic, report, feedback, onReportChange }) 
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-focus)] hover:text-[var(--text-primary)]"
               >
                 <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
-                  <path d="M7 1.5v8M7 9.5l-2.5-2.5M7 9.5l2.5-2.5M2.5 12.5h9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path
+                    d="M7 1.5v8M7 9.5l-2.5-2.5M7 9.5l2.5-2.5M2.5 12.5h9"
+                    stroke="currentColor"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
                 <span>Export</span>
               </button>
